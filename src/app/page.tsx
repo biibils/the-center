@@ -1,19 +1,14 @@
 import { Navbar } from "@/components/layout/navbar";
-import { Footer } from "@/components/layout/footer";
-import { HeroSection } from "@/features/landing/hero-section";
-import { MissionSection } from "@/features/landing/mission-section";
+import { SmoothScrollProvider } from "@/components/providers/smooth-scroll-provider";
+import { CinematicExperience } from "@/features/landing/cinematic-experience";
 
 export default function Home() {
   return (
-    <>
+    <SmoothScrollProvider>
       <Navbar />
-
       <main>
-        <HeroSection />
-        <MissionSection />
+        <CinematicExperience />
       </main>
-
-      <Footer />
-    </>
+    </SmoothScrollProvider>
   );
 }
