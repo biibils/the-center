@@ -2,141 +2,201 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function AmbientSoundToggle() {
+type SfxType = "transition" | "hover" | "portal";
+
+export function playCinematicSfx(type: SfxType) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent("center:play-sfx", { detail: { type } }),
+  );
+}
+
+interface AmbientSoundToggleProps {
+  audioSrc?: string;
+}
+
+const MUTE_STORAGE_KEY = "center:audio-muted";
+
+export function AmbientSoundToggle({
+  audioSrc = "/audio/main-theme-the-discovery.mp3",
+}: AmbientSoundToggleProps) {
   const [isPlaying, setIsPlaying] = useState(false);
-  const audioCtxRef = useRef<AudioContext | null>(null);
-  const masterGainRef = useRef<GainNode | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sfxCtxRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
+  const fadeRafRef = useRef<number | null>(null);
 
-  // Inisialisasi Web Audio Synthesizer (Warm Architectural Drone)
-  const initAudio = () => {
-    if (audioCtxRef.current) return;
+  const fadeVolume = (
+    targetVolume: number,
+    durationMs: number,
+    onDone?: () => void,
+  ) => {
+    const audio = audioRef.current;
+    if (!audio) return;
 
-    const AudioCtx =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext: typeof AudioContext })
-        .webkitAudioContext;
-    const ctx = new AudioCtx();
-    audioCtxRef.current = ctx;
+    if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current);
 
-    // Master Gain untuk fade-in / fade-out mulus
-    const masterGain = ctx.createGain();
-    masterGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    masterGain.connect(ctx.destination);
-    masterGainRef.current = masterGain;
+    const startVolume = audio.volume;
+    const startTime = performance.now();
 
-    // Lowpass Filter agar suara terasa hangat, dalam, dan tidak menusuk telinga
-    const filter = ctx.createBiquadFilter();
-    filter.type = "lowpass";
-    filter.frequency.setValueAtTime(320, ctx.currentTime);
-    filter.Q.setValueAtTime(1.2, ctx.currentTime);
-    filter.connect(masterGain);
+    const step = (now: number) => {
+      const elapsed = now - startTime;
+      const progress = Math.min(1, elapsed / durationMs);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      audio.volume = Math.max(
+        0,
+        Math.min(1, startVolume + (targetVolume - startVolume) * eased),
+      );
 
-    // LFO lambat untuk memberi efek "napas" pada ruang observatorium
-    const lfo = ctx.createOscillator();
-    const lfoGain = ctx.createGain();
-    lfo.frequency.setValueAtTime(0.08, ctx.currentTime); // 1 siklus per ~12 detik
-    lfoGain.gain.setValueAtTime(90, ctx.currentTime);
-    lfo.connect(lfoGain);
-    lfoGain.connect(filter.frequency);
-    lfo.start();
+      if (progress < 1) {
+        fadeRafRef.current = requestAnimationFrame(step);
+      } else {
+        onDone?.();
+      }
+    };
 
-    // Harmoni Nada Dasar D2 (73.42 Hz) + A2 (110 Hz) + E3 (164.81 Hz)
-    const frequencies = [73.42, 110.0, 146.83, 164.81];
-    frequencies.forEach((freq, idx) => {
-      const osc = ctx.createOscillator();
-      const oscGain = ctx.createGain();
-
-      osc.type = idx % 2 === 0 ? "sine" : "triangle";
-      osc.frequency.setValueAtTime(freq, ctx.currentTime);
-      // Sedikit detune untuk tekstur analog yang organik
-      osc.detune.setValueAtTime((idx - 1.5) * 4, ctx.currentTime);
-
-      oscGain.gain.setValueAtTime(idx === 0 ? 0.22 : 0.08, ctx.currentTime);
-
-      osc.connect(oscGain);
-      oscGain.connect(filter);
-      osc.start();
-    });
+    fadeRafRef.current = requestAnimationFrame(step);
   };
 
-  // Efek denting kuningan halus saat melewati gerbang babak (Folio I - V)
-  const playArchwayChime = (chapterIndex: number) => {
-    const ctx = audioCtxRef.current;
-    if (!ctx || !isPlayingRef.current || ctx.state !== "running") return;
+  useEffect(() => {
+    const audio = new Audio(audioSrc);
+    audio.loop = true;
+    audio.volume = 0;
+    audio.preload = "auto";
+    audioRef.current = audio;
 
-    // Tangga nada kontemplatif (D4, E4, F4, A4, C5, D5)
-    const notes = [293.66, 329.63, 349.23, 440.0, 523.25, 587.33];
-    const freq = notes[chapterIndex % notes.length];
+    const isExplicitlyMuted = () =>
+      sessionStorage.getItem(MUTE_STORAGE_KEY) === "true";
+
+    const attemptAutoPlay = async () => {
+      if (isPlayingRef.current || isExplicitlyMuted()) return false;
+      try {
+        await audio.play();
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+        fadeVolume(0.65, 1400);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    const removeInteractionListeners = () => {
+      window.removeEventListener("pointerdown", onFirstInteraction);
+      window.removeEventListener("keydown", onFirstInteraction);
+      window.removeEventListener("touchstart", onFirstInteraction);
+    };
+
+    const onFirstInteraction = async () => {
+      const started = await attemptAutoPlay();
+      if (started || isExplicitlyMuted()) {
+        removeInteractionListeners();
+      }
+    };
+
+    // 1. Coba langsung putar saat halaman dimuat (berhasil otomatis saat pindah halaman SPA)
+    attemptAutoPlay().then((started) => {
+      // 2. Jika browser menahan autoplay di awal, nyalakan begitu ada klik/sentuhan pertama di mana saja
+      if (!started && !isExplicitlyMuted()) {
+        window.addEventListener("pointerdown", onFirstInteraction, {
+          passive: true,
+        });
+        window.addEventListener("keydown", onFirstInteraction, {
+          passive: true,
+        });
+        window.addEventListener("touchstart", onFirstInteraction, {
+          passive: true,
+        });
+      }
+    });
+
+    return () => {
+      removeInteractionListeners();
+      if (fadeRafRef.current) cancelAnimationFrame(fadeRafRef.current);
+      audio.pause();
+      audio.src = "";
+    };
+  }, [audioSrc]);
+
+  const triggerSfx = (type: SfxType) => {
+    if (!isPlayingRef.current) return;
+
+    if (!sfxCtxRef.current) {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext })
+          .webkitAudioContext;
+      sfxCtxRef.current = new AudioCtx();
+    }
+
+    const ctx = sfxCtxRef.current;
+    if (ctx.state === "suspended") ctx.resume();
     const now = ctx.currentTime;
 
+    if (type === "hover") {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(780, now);
+      osc.frequency.exponentialRampToValueAtTime(420, now + 0.05);
+      gain.gain.setValueAtTime(0.012, now);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.06);
+      return;
+    }
+
     const osc = ctx.createOscillator();
-    const chimeGain = ctx.createGain();
-
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(freq, now);
-
-    // Envelope lonceng lembut (attack halus, decay panjang)
-    chimeGain.gain.setValueAtTime(0.0001, now);
-    chimeGain.gain.exponentialRampToValueAtTime(0.045, now + 0.12);
-    chimeGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.6);
-
-    osc.connect(chimeGain);
-    chimeGain.connect(ctx.destination);
-
+    const gain = ctx.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(type === "portal" ? 587.33 : 440, now);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.linearRampToValueAtTime(0.04, now + 0.08);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.8);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
     osc.start(now);
-    osc.stop(now + 2.7);
+    osc.stop(now + 1.9);
   };
 
   const toggleSound = async () => {
-    if (!audioCtxRef.current) {
-      initAudio();
-    }
-
-    const ctx = audioCtxRef.current;
-    const masterGain = masterGainRef.current;
-    if (!ctx || !masterGain) return;
-
-    if (ctx.state === "suspended") {
-      await ctx.resume();
-    }
-
-    const now = ctx.currentTime;
+    const audio = audioRef.current;
+    if (!audio) return;
 
     if (!isPlaying) {
-      // Fade in 1.5 detik
-      masterGain.gain.cancelScheduledValues(now);
-      masterGain.gain.setValueAtTime(masterGain.gain.value, now);
-      masterGain.gain.exponentialRampToValueAtTime(0.35, now + 1.5);
-      setIsPlaying(true);
-      isPlayingRef.current = true;
+      try {
+        sessionStorage.setItem(MUTE_STORAGE_KEY, "false");
+        await audio.play();
+        setIsPlaying(true);
+        isPlayingRef.current = true;
+        fadeVolume(0.65, 1100);
+      } catch (err) {
+        console.error("Gagal memutar audio. Cek path file:", audioSrc, err);
+      }
     } else {
-      // Fade out 0.8 detik
-      masterGain.gain.cancelScheduledValues(now);
-      masterGain.gain.setValueAtTime(masterGain.gain.value, now);
-      masterGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.8);
+      sessionStorage.setItem(MUTE_STORAGE_KEY, "true");
       setIsPlaying(false);
       isPlayingRef.current = false;
+      fadeVolume(0, 600, () => {
+        audio.pause();
+      });
     }
   };
 
-  // Sinkronisasi dengan perpindahan babak 3D
   useEffect(() => {
-    const onChapterChange = (e: Event) => {
-      const customEvent = e as CustomEvent<{ index: number }>;
-      playArchwayChime(customEvent.detail.index);
+    const onSfx = (e: Event) => {
+      const custom = e as CustomEvent<{ type: SfxType }>;
+      triggerSfx(custom.detail.type);
     };
+    const onChapterChange = () => triggerSfx("transition");
 
+    window.addEventListener("center:play-sfx", onSfx);
     window.addEventListener("center:chapter-change", onChapterChange);
     return () => {
+      window.removeEventListener("center:play-sfx", onSfx);
       window.removeEventListener("center:chapter-change", onChapterChange);
-    };
-  }, []);
-
-  // Bersihkan AudioContext saat komponen unmount
-  useEffect(() => {
-    return () => {
-      audioCtxRef.current?.close();
     };
   }, []);
 
@@ -144,12 +204,10 @@ export function AmbientSoundToggle() {
     <button
       type="button"
       onClick={toggleSound}
-      aria-label={isPlaying ? "Matikan suara latar" : "Nyalakan suara latar"}
-      title={isPlaying ? "Ambient Audio: On" : "Ambient Audio: Off"}
-      className="group inline-flex cursor-pointer items-center gap-2.5 border border-border/80 bg-surface/40 px-3 py-1.5 text-[10px] font-mono uppercase tracking-[0.2em] text-muted backdrop-blur-md transition-colors hover:border-accent hover:text-foreground"
+      aria-label={isPlaying ? "Matikan musik latar" : "Nyalakan musik latar"}
+      className="group relative inline-flex cursor-pointer items-center gap-2.5 border border-border/80 bg-surface/50 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-muted backdrop-blur-md transition-all hover:border-accent hover:text-foreground"
     >
-      {/* Equalizer Bars Minimalis */}
-      <span className="flex h-3 items-end gap-0.5" aria-hidden="true">
+      <span className="flex h-3 items-end gap-[2.5px]" aria-hidden="true">
         <span
           className={`w-[1.5px] bg-accent transition-all duration-300 ${
             isPlaying ? "h-3 animate-pulse" : "h-1.5 opacity-50"
@@ -162,13 +220,18 @@ export function AmbientSoundToggle() {
         />
         <span
           className={`w-[1.5px] bg-accent transition-all duration-300 ${
-            isPlaying ? "h-2.5 animate-pulse" : "h-1.5 opacity-50"
+            isPlaying ? "h-3 animate-pulse" : "h-1.5 opacity-50"
+          }`}
+        />
+        <span
+          className={`w-[1.5px] bg-accent transition-all duration-700 ${
+            isPlaying ? "h-1.5 animate-bounce" : "h-1 opacity-50"
           }`}
         />
       </span>
 
       <span className="hidden sm:inline">
-        {isPlaying ? "Sound On" : "Sound Off"}
+        {isPlaying ? "Audio On" : "Audio Off"}
       </span>
     </button>
   );
