@@ -8,8 +8,8 @@ import { Container } from "@/components/ui/container";
 import { AmbientSoundToggle } from "../shared/ambient-sound-toggle";
 
 const navItems = [
-  { label: "Misi Kami", hash: "mission", chapterIndex: 1 },
-  { label: "The Journey", hash: "journey", chapterIndex: 3 },
+  { label: "Misi Kami", hash: "mission", chapterIndex: 0 },
+  { label: "The Journey", hash: "journey", chapterIndex: 1 },
   { label: "Tentang Kami", hash: "about", chapterIndex: 5 },
 ];
 

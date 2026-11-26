@@ -6,7 +6,8 @@ import gsap from "gsap";
 import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { ArrowDown, ArrowRight, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { CivilizationCanvas } from "./scene/civilization-astrolabe";
+import { AnimeDepthWorldCanvas } from "./components/anime-depth-world-canvas";
+import { playCinematicSfx } from "@/components/shared/ambient-sound-toggle";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -61,100 +62,79 @@ export function CinematicExperience() {
   const [activeIndex, setActiveIndex] = useState(0);
 
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      const stages = stageRefs.current.filter(Boolean) as HTMLDivElement[];
+    const stages = stageRefs.current.filter(Boolean) as HTMLDivElement[];
+    const maxIndex = chapters.length - 1; // 5 interval untuk 6 bab
+
+    const renderStages = (progress: number) => {
+      const exactStage = progress * maxIndex; // Rentang 0.0 -> 5.0
+      const currentIdx = Math.min(
+        maxIndex,
+        Math.max(0, Math.round(exactStage)),
+      );
+      setActiveIndex(currentIdx);
 
       stages.forEach((stage, i) => {
-        if (i === 0) {
+        const diff = exactStage - i; // 0 saat tepat berada di bab i
+        const absDiff = Math.abs(diff);
+
+        // Zona diam penuh di sekitar titik bab (-0.22 s/d +0.22) agar teks tajam 100%
+        if (absDiff <= 0.22) {
           gsap.set(stage, {
             opacity: 1,
             scale: 1,
             y: 0,
             pointerEvents: "auto",
+          });
+        } else if (absDiff < 0.52) {
+          // Transisi halus hanya di celah antar-bab (0.22 -> 0.52)
+          const t = (absDiff - 0.22) / 0.3; // 0 -> 1
+          const eased = t * t * (3 - 2 * t); // smoothstep
+          gsap.set(stage, {
+            opacity: 1 - eased,
+            scale: diff > 0 ? 1 + eased * 0.05 : 1 - eased * 0.06,
+            y: diff > 0 ? -eased * 20 : eased * 20,
+            pointerEvents: "none",
           });
         } else {
           gsap.set(stage, {
             opacity: 0,
-            scale: 0.92,
-            y: 24,
+            scale: diff > 0 ? 1.05 : 0.94,
+            y: diff > 0 ? -20 : 20,
             pointerEvents: "none",
           });
         }
       });
+    };
 
-      const tl = gsap.timeline({
-        scrollTrigger: {
-          trigger: triggerRef.current,
-          start: "top top",
-          end: "bottom bottom",
-          scrub: 1,
-          onUpdate: (self) => {
-            progressRef.current = self.progress;
-            const idx = Math.min(
-              chapters.length - 1,
-              Math.floor(self.progress * chapters.length),
-            );
-            setActiveIndex(idx);
-          },
-        },
-      });
+    renderStages(0);
 
-      stages.forEach((stage, i) => {
-        const nextStage = stages[i + 1];
-        if (!nextStage) return;
+    const st = ScrollTrigger.create({
+      trigger: triggerRef.current,
+      start: "top top",
+      end: "bottom bottom",
+      scrub: 0.2,
+      onUpdate: (self) => {
+        progressRef.current = self.progress;
+        renderStages(self.progress);
+      },
+    });
 
-        const position = i;
-
-        tl.to(
-          stage,
-          {
-            opacity: 0,
-            scale: 1.07,
-            y: -24,
-            pointerEvents: "none",
-            duration: 0.45,
-            ease: "power2.inOut",
-          },
-          position + 0.35,
-        );
-
-        tl.fromTo(
-          nextStage,
-          {
-            opacity: 0,
-            scale: 0.92,
-            y: 24,
-            pointerEvents: "none",
-          },
-          {
-            opacity: 1,
-            scale: 1,
-            y: 0,
-            pointerEvents: "auto",
-            duration: 0.5,
-            ease: "power2.out",
-          },
-          position + 0.5,
-        );
-      });
-    }, triggerRef);
-
-    return () => ctx.revert();
+    return () => st.kill();
   }, []);
 
   const jumpToChapter = (index: number) => {
     if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const triggerTop = window.scrollY + rect.top;
     const totalScroll = triggerRef.current.offsetHeight - window.innerHeight;
-    const targetProgress = index === 0 ? 0 : (index + 0.35) / chapters.length;
+    const targetProgress = index / (chapters.length - 1);
+
     window.scrollTo({
-      top: totalScroll * Math.min(1, targetProgress),
+      top: triggerTop + totalScroll * Math.min(1, Math.max(0, targetProgress)),
       behavior: "smooth",
     });
   };
 
-  // Tambahkan di dalam komponen CinematicExperience, tepat di bawah fungsi jumpToChapter:
-
-  // 1. Kirim status babak aktif ke Navbar
   useEffect(() => {
     window.dispatchEvent(
       new CustomEvent("center:chapter-change", {
@@ -163,7 +143,6 @@ export function CinematicExperience() {
     );
   }, [activeIndex]);
 
-  // 2. Tangkap event klik dari Navbar & initial URL hash (#mission, #journey, #about)
   useEffect(() => {
     const hashMap: Record<string, number> = {
       "#mission": 1,
@@ -178,7 +157,6 @@ export function CinematicExperience() {
 
     window.addEventListener("center:jump-chapter", handleJumpEvent);
 
-    // Cek jika user datang dari halaman lain dengan membawa hash (misal /#mission)
     const initialHash = window.location.hash;
     if (initialHash && hashMap[initialHash] !== undefined) {
       const timer = setTimeout(() => {
@@ -197,22 +175,25 @@ export function CinematicExperience() {
 
   return (
     <>
-      <CivilizationCanvas progressRef={progressRef} />
+      <AnimeDepthWorldCanvas
+        progressRef={progressRef}
+        colorMapSrc="/images/landing-world.webp"
+        depthMapSrc="/images/landing-world-depth.webp"
+      />
 
       <div ref={triggerRef} className="relative z-10 h-[600vh] w-full">
-        <div className="sticky top-0 flex h-screen w-full items-center justify-center overflow-hidden px-6 pt-20">
-          {/* Optical Focus Aura agar kontras baca tetap terjaga di Light & Dark mode */}
+        <div className="sticky top-0 flex h-screen w-full items-center justify-center overflow-hidden px-6 pt-6 md:justify-start">
+          {/* Pendar Radial Lembut Khusus di Sisi Kiri (Area Teks) — Kanan (Kubah) tetap 100% Jernih */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_52%_46%_at_50%_50%,var(--background)_22%,transparent_100%)] opacity-90"
+            className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_62%_65%_at_50%_50%,var(--background)_20%,transparent_100%)] opacity-85 md:bg-[radial-gradient(ellipse_48%_68%_at_24%_50%,var(--background)_22%,transparent_100%)] md:opacity-75"
           />
 
-          {/* Bingkai Arsitektural Tipis (Museum / Astrolabe Frame) */}
+          {/* Bingkai Arsitektural Tipis */}
           <div
             aria-hidden="true"
             className="pointer-events-none fixed inset-x-6 bottom-14 top-24 z-10 hidden border border-border/70 md:block lg:inset-x-10"
           >
-            {/* Penanda Sudut Instrumen */}
             <span className="absolute -left-px -top-px h-3 w-3 border-l border-t border-accent" />
             <span className="absolute -right-px -top-px h-3 w-3 border-r border-t border-accent" />
             <span className="absolute -bottom-px -left-px h-3 w-3 border-b border-l border-accent" />
@@ -220,33 +201,45 @@ export function CinematicExperience() {
           </div>
 
           {/* =========================================================
-              BABAK 0: PROLOGUE (MONUMENTAL EDITORIAL)
+              BABAK 0: PROLOGUE (RATA KIRI)
           ========================================================= */}
           <div
             ref={(el) => {
               stageRefs.current[0] = el;
             }}
-            className="absolute inset-x-0 mx-auto flex max-w-4xl flex-col items-center px-8 text-center will-change-transform"
+            className="absolute left-0 flex w-full max-w-3xl flex-col items-center px-8 text-center will-change-transform md:items-start md:pl-16 md:pr-8 md:text-left lg:pl-24"
           >
-            <p className="font-mono text-[10px] uppercase tracking-[0.32em] text-accent sm:text-[11px]">
-              Prologue — Perjalanan Melampaui Waktu
-            </p>
+            <div className="flex items-center gap-3">
+              <span
+                aria-hidden="true"
+                className="hidden h-px w-6 bg-amber-800/80 dark:bg-accent/80 md:inline-block"
+              />
+              <p className="font-mono text-sm font-bold uppercase tracking-[0.28em] text-amber-800 [text-shadow:0_1px_12px_var(--background),0_0_24px_var(--background)] dark:text-accent sm:text-[13px]">
+                Prologue — Perjalanan Melampaui Waktu
+              </p>
+            </div>
 
-            <div className="my-3.5 h-5 w-px bg-accent/50 xl:my-4 xl:h-6" />
+            <div className="my-3 h-4 w-px bg-accent/70" />
 
-            <h1 className="font-display text-4xl leading-[1.12] tracking-tight sm:text-5xl md:text-6xl xl:text-[4.25rem]">
-              Menelusuri <span className="text-accent">Masa Lalu.</span>
-              <br />
-              Membangun <span className="italic">Masa Depan.</span>
+            <h1 className="font-display text-3xl leading-[1.14] tracking-tight text-foreground sm:text-5xl md:text-[3rem] xl:text-[3.55rem]">
+              <span className="block sm:whitespace-nowrap">
+                Menelusuri{" "}
+                <span className="text-accent [text-shadow:0_1px_12px_var(--background),0_0_24px_var(--background)]">
+                  Masa Lalu.
+                </span>
+              </span>
+              <span className="block sm:whitespace-nowrap">
+                Membangun <span className="italic">Masa Depan.</span>
+              </span>
             </h1>
 
-            <p className="mt-5 max-w-lg text-sm leading-relaxed text-muted sm:text-[15px] sm:leading-7 xl:mt-6 xl:max-w-xl">
+            <p className="mt-4 max-w-md text-sm font-medium leading-relaxed text-foreground/90 sm:text-[15px] sm:leading-7 xl:mt-5 xl:max-w-lg">
               Sebuah perjalanan menelusuri sejarah, pengetahuan, dan potensi
               manusia. Temukan kisah-kisah yang membentuk peradaban, lalu ambil
               bagian dalam sejarah yang belum selesai ditulis.
             </p>
 
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-5 xl:mt-8">
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-5 md:justify-start xl:mt-7">
               <Link href="/prologue">
                 <Button>
                   Mulai Perjalananmu
@@ -257,16 +250,33 @@ export function CinematicExperience() {
               <button
                 type="button"
                 onClick={() => jumpToChapter(1)}
-                className="inline-flex cursor-pointer items-center gap-2 border-b border-border pb-1 text-xs uppercase tracking-[0.2em] text-muted transition-colors hover:border-accent hover:text-foreground"
+                onMouseEnter={() => playCinematicSfx("hover")}
+                className="group relative inline-flex cursor-pointer items-center gap-2.5 pb-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-foreground/85 transition-colors duration-300 hover:text-accent"
               >
-                Telusuri Empat Pilar
-                <ArrowDown size={13} className="text-accent" />
+                <ArrowDown
+                  size={15}
+                  className="text-accent transition-transform duration-300 ease-out group-hover:translate-y-1"
+                />
+
+                <span>Telusuri Empat Pilar</span>
+
+                {/* Garis dasar statis */}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 bottom-0 h-0.5 bg-foreground/25"
+                />
+
+                {/* Garis emas yang meluncur penuh saat hover */}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-accent transition-transform duration-300 ease-out group-hover:scale-x-100"
+                />
               </button>
             </div>
           </div>
 
           {/* =========================================================
-              BABAK I - IV: LEMBAR MANUSKRIP ASIMETRIS (HISTORICAL FOLIO)
+              BABAK I - IV: EMPAT PILAR (RATA KIRI)
           ========================================================= */}
           {pillars.map((pillar, idx) => {
             const stageIdx = idx + 1;
@@ -277,77 +287,67 @@ export function CinematicExperience() {
                 ref={(el) => {
                   stageRefs.current[stageIdx] = el;
                 }}
-                className="absolute inset-x-0 mx-auto w-full max-w-4xl px-8 will-change-transform md:px-14"
+                className="absolute left-0 w-full max-w-2xl px-8 will-change-transform md:pl-16 md:pr-8 lg:pl-24"
               >
-                <div className="grid items-center gap-8 md:grid-cols-[140px_1px_1fr] md:gap-12">
-                  {/* Kolom Kiri: Angka Romawi Klasik */}
-                  <div className="flex flex-col items-start md:items-end md:text-right">
-                    <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-subtle">
-                      Pilar
-                    </span>
-                    <span className="font-display text-6xl leading-none text-accent sm:text-7xl md:text-8xl">
+                <div className="flex flex-col items-start">
+                  {/* Header Pilar & Angka Romawi */}
+                  <div className="flex items-baseline gap-4">
+                    <span className="font-display text-5xl leading-none text-accent sm:text-6xl">
                       {pillar.roman}
                     </span>
-                  </div>
-
-                  {/* Garis Pemisah Vertikal */}
-                  <div className="hidden h-44 w-px bg-border md:block" />
-
-                  {/* Kolom Kanan: Narasi Kuratorial */}
-                  <div>
-                    <p className="font-mono text-[11px] uppercase tracking-[0.28em] text-accent">
+                    <span className="h-6 w-px bg-border" />
+                    <p className="font-mono text-sm font-semibold uppercase tracking-[0.28em] text-accent">
                       {pillar.index}
                     </p>
-
-                    <h2 className="mt-3 font-display text-4xl tracking-tight sm:text-5xl md:text-6xl">
-                      {pillar.title}
-                    </h2>
-
-                    <p className="mt-2 font-display text-base italic text-foreground/80 sm:text-lg">
-                      {pillar.latinNote}
-                    </p>
-
-                    <div className="my-5 h-px w-16 bg-accent/60" />
-
-                    <p className="max-w-xl text-base leading-8 text-muted">
-                      {pillar.description}
-                    </p>
                   </div>
+
+                  <h2 className="mt-4 font-display text-4xl tracking-tight text-foreground sm:text-5xl md:text-[3.5rem]">
+                    {pillar.title}
+                  </h2>
+
+                  <p className="mt-2 font-display text-base italic text-foreground/85 sm:text-lg">
+                    {pillar.latinNote}
+                  </p>
+
+                  <div className="my-5 h-px w-16 bg-accent/70" />
+
+                  <p className="max-w-lg text-sm font-medium leading-7 text-foreground/90 sm:text-base sm:leading-8">
+                    {pillar.description}
+                  </p>
                 </div>
               </div>
             );
           })}
 
           {/* =========================================================
-              BABAK V: THE CHARTER / PENUTUP FILOSOFIS
+              BABAK V: THE CHARTER / PENUTUP FILOSOFIS (RATA KIRI)
           ========================================================= */}
           <div
             ref={(el) => {
               stageRefs.current[5] = el;
             }}
-            className="absolute inset-x-0 mx-auto flex max-w-3xl flex-col items-center px-6 text-center will-change-transform"
+            className="absolute left-0 flex w-full max-w-2xl flex-col items-center px-8 text-center will-change-transform md:items-start md:pl-16 md:pr-8 md:text-left lg:pl-24"
           >
-            <p className="font-mono text-[11px] uppercase tracking-[0.35em] text-accent">
+            <p className="font-mono text-sm font-semibold uppercase tracking-[0.35em] text-accent">
               The Center Philosophy
             </p>
 
-            <blockquote className="mt-6 font-display text-3xl leading-snug sm:text-5xl md:text-[3.25rem]">
-              “Build People.
+            <blockquote className="leading-snug mt-5 font-display text-3xl sm:whitespace-nowrap text-foreground sm:text-4xl md:text-[2.85rem]">
+              “Build People. Empower <br />
+              Collaboration.
               <br />
-              Empower Collaboration.
-              <br />
-              <span className="text-accent italic">Revive Civilization.”</span>
+              <span className="italic text-accent">Revive Civilization.”</span>
             </blockquote>
 
-            <div className="my-7 h-px w-24 bg-border" />
+            <div className="my-6 h-px w-20 bg-border" />
 
-            <p className="max-w-lg text-sm leading-7 text-muted sm:text-base">
+            <p className="max-w-md text-sm font-medium leading-7 text-foreground/90 sm:text-base">
               Berakar dari nilai-nilai Islam. Terbuka untuk Kemanusiaan. Sebuah
               ekosistem yang didedikasikan untuk membentuk manusia
               berpengetahuan, berkompeten, dan berprinsip.
             </p>
 
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-5">
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-5 md:justify-start">
               <Link href="/prologue">
                 <Button>
                   Masuki Prologue
@@ -358,10 +358,27 @@ export function CinematicExperience() {
               <button
                 type="button"
                 onClick={() => jumpToChapter(0)}
-                className="inline-flex cursor-pointer items-center gap-1.5 border-b border-border pb-1 font-mono text-xs uppercase tracking-[0.2em] text-muted transition-colors hover:border-accent hover:text-foreground"
+                onMouseEnter={() => playCinematicSfx("hover")}
+                className="group relative inline-flex cursor-pointer items-center gap-2.5 pb-1.5 text-xs font-semibold uppercase tracking-[0.22em] text-foreground/85 transition-colors duration-300 hover:text-accent"
               >
-                Kembali ke Awal
-                <ArrowUpRight size={14} />
+                <span>Kembali ke Awal</span>
+
+                <ArrowUpRight
+                  size={15}
+                  className="text-accent transition-transform duration-300 ease-out group-hover:-translate-y-1"
+                />
+
+                {/* Garis dasar statis */}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 bottom-0 h-0.5 bg-foreground/25"
+                />
+
+                {/* Garis emas yang meluncur penuh saat hover */}
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-x-0 bottom-0 h-0.5 origin-left scale-x-0 bg-accent transition-transform duration-300 ease-out group-hover:scale-x-100"
+                />
               </button>
             </div>
           </div>
@@ -371,50 +388,52 @@ export function CinematicExperience() {
           ========================================================= */}
           <aside
             aria-label="Chapter Index"
-            className="fixed right-14 top-1/2 z-30 hidden -translate-y-1/2 flex-col items-end gap-3.5 xl:flex"
+            className="pointer-events-none fixed inset-y-0 right-0 z-20 hidden w-48 items-center justify-end bg-linear-to-l from-background/75 via-background/65 to-transparent pr-14 xl:flex"
           >
-            {chapters.map((chapter, idx) => {
-              const isActive = activeIndex === idx;
-              return (
-                <button
-                  key={chapter.id}
-                  type="button"
-                  onClick={() => jumpToChapter(idx)}
-                  className="group flex cursor-pointer items-center gap-3 text-right"
-                >
-                  <span
-                    className={`font-mono text-[10px] uppercase tracking-[0.22em] transition-all duration-300 ${
-                      isActive
-                        ? "text-accent opacity-100"
-                        : "text-subtle opacity-0 group-hover:opacity-100"
-                    }`}
+            <div className="pointer-events-auto flex flex-col items-end gap-4">
+              {chapters.map((chapter, idx) => {
+                const isActive = activeIndex === idx;
+                return (
+                  <button
+                    key={chapter.id}
+                    type="button"
+                    onClick={() => jumpToChapter(idx)}
+                    className="group flex cursor-pointer items-center gap-3 text-right"
                   >
-                    {chapter.label}
-                  </span>
+                    {/* Angka Romawi */}
+                    <span
+                      className={`w-4 text-right font-display text-xs font-bold transition-colors ${
+                        isActive
+                          ? "text-accent"
+                          : "text-foreground/85 group-hover:text-foreground"
+                      }`}
+                    >
+                      {chapter.roman}
+                    </span>
 
-                  <span
-                    className={`font-display text-xs transition-colors ${
-                      isActive
-                        ? "text-accent"
-                        : "text-subtle group-hover:text-foreground"
-                    }`}
-                  >
-                    {chapter.roman}
-                  </span>
-                </button>
-              );
-            })}
+                    {/* Garis Indikator Astrolabe */}
+                    <span
+                      className={`h-px transition-all duration-300 ${
+                        isActive
+                          ? "w-6 bg-accent"
+                          : "w-2.5 bg-foreground/45 group-hover:w-4 group-hover:bg-foreground"
+                      }`}
+                    />
+                  </button>
+                );
+              })}
+            </div>
           </aside>
 
           {/* =========================================================
-              BARIS KOORDINAT BAWAH VIEWPORT
+              BARIS KOORDINAT BAWAH VIEWPORT (FOOTER)
           ========================================================= */}
-          <div className="pointer-events-none fixed inset-x-6 bottom-0 z-20 flex h-14 items-center justify-between text-[10px] uppercase tracking-[0.25em] text-subtle lg:inset-x-10">
+          <div className="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex h-14 items-center justify-between bg-linear-to-t from-background/90 via-background/60 to-transparent px-6 text-[10px] font-semibold uppercase tracking-[0.25em] text-foreground lg:px-10">
             <span className="hidden sm:inline">
               Berakar pada Nilai-Nilai Islam · Terbuka bagi Kemanusiaan
             </span>
 
-            <span className="font-mono text-accent">
+            <span className="font-mono font-bold text-accent">
               STAGE {chapters[activeIndex]?.roman} —{" "}
               {chapters[activeIndex]?.label}
             </span>

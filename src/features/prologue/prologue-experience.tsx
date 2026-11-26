@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
-import { prologueScenes } from "@/content/prologue";
+import { prologueBeats } from "@/content/prologue";
 import { Button } from "@/components/ui/button";
 import {
   AmbientSoundToggle,
@@ -13,61 +13,27 @@ import {
 } from "@/components/shared/ambient-sound-toggle";
 import { FullpageSceneBackdrop } from "./components/fullpage-scene-backdrop";
 
-interface StoryBeat {
-  sceneIndex: number;
-  eyebrow: string;
-  title: string;
-  sentence: string;
-  isFirstInScene: boolean;
-}
-
 export function PrologueExperience() {
-  const [currentBeat, setCurrentBeat] = useState(0);
+  const [currentIndex, setCurrentIndex] = useState(0);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [isWarping, setIsWarping] = useState(false);
+  const [isWhiteout, setIsWhiteout] = useState(false);
+  const [isExiting, setIsExiting] = useState(false);
 
-  const sentenceBoxRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const wheelLockRef = useRef<number>(0);
   const touchStartYRef = useRef<number | null>(null);
   const router = useRouter();
 
-  // Ratakan semua adegan menjadi urutan kalimat tunggal (1 kalimat per step)
-  const beats = useMemo<StoryBeat[]>(() => {
-    const list: StoryBeat[] = [];
+  const beat = prologueBeats[currentIndex] ?? prologueBeats[0];
+  const progressPercent = ((currentIndex + 1) / prologueBeats.length) * 100;
 
-    prologueScenes.forEach((scene, sceneIndex) => {
-      const sceneSentences = scene.paragraphs.flatMap((paragraph) => {
-        const matches = paragraph.match(/[^.!?]+[.!?]+|[^.!?]+$/g);
-        return matches
-          ? matches.map((s) => s.trim()).filter(Boolean)
-          : [paragraph];
-      });
-
-      sceneSentences.forEach((sentence, sIdx) => {
-        list.push({
-          sceneIndex,
-          eyebrow: scene.eyebrow,
-          title: scene.title,
-          sentence,
-          isFirstInScene: sIdx === 0,
-        });
-      });
-    });
-
-    return list;
-  }, []);
-
-  const activeBeat = beats[currentBeat] ?? beats[0];
-  const isLastBeat = currentBeat === beats.length - 1;
-  const progressPercent = ((currentBeat + 1) / beats.length) * 100;
-
-  // Animasi Fade-In Kalimat di Tengah Layar
+  // Animasi Fade-In setiap pergantian kalimat / title card
   useEffect(() => {
-    if (!sentenceBoxRef.current) return;
+    if (!stageRef.current) return;
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
-        sentenceBoxRef.current,
+        stageRef.current,
         {
           opacity: 0,
           y: 16,
@@ -84,75 +50,92 @@ export function PrologueExperience() {
           onComplete: () => setIsAnimating(false),
         },
       );
-    }, sentenceBoxRef);
+    }, stageRef);
 
     return () => ctx.revert();
-  }, [currentBeat]);
+  }, [currentIndex]);
 
-  // Bunyikan resonansi halus hanya saat berpindah ke adegan baru
+  // Trigger SFX transisi saat adegan berganti
   useEffect(() => {
     window.dispatchEvent(
       new CustomEvent("center:chapter-change", {
-        detail: { index: activeBeat.sceneIndex },
+        detail: { index: beat.sceneIndex },
       }),
     );
-  }, [activeBeat.sceneIndex]);
+  }, [beat.sceneIndex]);
 
-  const enterPortal = useCallback(() => {
-    if (isWarping) return;
-    setIsWarping(true);
-    setIsAnimating(true);
-    playCinematicSfx("portal");
-
-    if (sentenceBoxRef.current) {
-      gsap.to(sentenceBoxRef.current, {
-        opacity: 0,
-        scale: 1.06,
-        filter: "blur(10px)",
-        duration: 0.8,
-        ease: "power2.in",
-      });
-    }
-
-    setTimeout(() => {
-      router.push("/explorer/register");
-    }, 1250);
-  }, [isWarping, router]);
-
-  const stepToBeat = useCallback(
+  const goToBeat = useCallback(
     (nextIndex: number) => {
-      if (isAnimating || isWarping) return;
-
-      if (nextIndex >= beats.length) {
-        enterPortal();
-        return;
-      }
-
-      if (nextIndex < 0 || nextIndex === currentBeat) return;
+      if (isAnimating || isWhiteout || isExiting) return;
+      if (nextIndex < 0 || nextIndex >= prologueBeats.length) return;
+      if (nextIndex === currentIndex) return;
 
       setIsAnimating(true);
 
-      if (!sentenceBoxRef.current) {
-        setCurrentBeat(nextIndex);
+      if (!stageRef.current) {
+        setCurrentIndex(nextIndex);
         return;
       }
 
-      gsap.to(sentenceBoxRef.current, {
+      gsap.to(stageRef.current, {
         opacity: 0,
-        y: nextIndex > currentBeat ? -14 : 14,
+        y: nextIndex > currentIndex ? -14 : 14,
         filter: "blur(6px)",
         duration: 0.35,
         ease: "power2.in",
         onComplete: () => {
-          setCurrentBeat(nextIndex);
+          setCurrentIndex(nextIndex);
         },
       });
     },
-    [beats.length, currentBeat, enterPortal, isAnimating, isWarping],
+    [currentIndex, isAnimating, isExiting, isWhiteout],
   );
 
-  // Trigger via Scroll Wheel / Trackpad (1 scroll gesture = 1 kalimat)
+  // Aksi khusus saat tombol [MULAI PERJALANAN] atau [LANJUTKAN] ditekan
+  const handleActionTrigger = useCallback(() => {
+    if (isAnimating || isWhiteout || isExiting) return;
+
+    // 1. Adegan 04 -> Adegan 05: Efek cahaya putih menembus pintu waktu
+    if (beat.actionLabel === "MULAI PERJALANAN") {
+      setIsWhiteout(true);
+      setIsAnimating(true);
+      playCinematicSfx("portal");
+
+      setTimeout(() => {
+        setCurrentIndex((prev) => Math.min(prologueBeats.length - 1, prev + 1));
+      }, 950);
+
+      setTimeout(() => {
+        setIsWhiteout(false);
+      }, 1900);
+      return;
+    }
+
+    // 2. Adegan 06 -> Masuk ke Interlude (/explorer/register)
+    if (beat.actionLabel === "LANJUTKAN") {
+      setIsExiting(true);
+      playCinematicSfx("portal");
+
+      if (stageRef.current) {
+        gsap.to(stageRef.current, {
+          opacity: 0,
+          scale: 1.05,
+          filter: "blur(8px)",
+          duration: 0.75,
+          ease: "power2.in",
+        });
+      }
+
+      setTimeout(() => {
+        router.push("/explorer/register");
+      }, 1000);
+    }
+  }, [beat.actionLabel, isAnimating, isExiting, isWhiteout, router]);
+
+  // Navigasi Scroll Wheel, Touch Swipe, & Keyboard
   useEffect(() => {
+    const canAdvanceByScroll = !beat.actionLabel; // Tahan scroll di checkpoint tombol
+
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (Math.abs(e.deltaY) < 18) return;
@@ -162,9 +145,9 @@ export function PrologueExperience() {
       wheelLockRef.current = now;
 
       if (e.deltaY > 0) {
-        stepToBeat(currentBeat + 1);
+        if (canAdvanceByScroll) goToBeat(currentIndex + 1);
       } else {
-        stepToBeat(currentBeat - 1);
+        goToBeat(currentIndex - 1);
       }
     };
 
@@ -174,25 +157,30 @@ export function PrologueExperience() {
 
     const handleTouchEnd = (e: TouchEvent) => {
       if (touchStartYRef.current === null) return;
-      const endY = e.changedTouches[0]?.clientY ?? touchStartYRef.current;
-      const diff = touchStartYRef.current - endY;
+      const diff =
+        touchStartYRef.current -
+        (e.changedTouches[0]?.clientY ?? touchStartYRef.current);
       touchStartYRef.current = null;
 
       if (Math.abs(diff) < 35) return;
       if (diff > 0) {
-        stepToBeat(currentBeat + 1);
+        if (canAdvanceByScroll) goToBeat(currentIndex + 1);
       } else {
-        stepToBeat(currentBeat - 1);
+        goToBeat(currentIndex - 1);
       }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown" || e.key === "ArrowRight" || e.key === " ") {
         e.preventDefault();
-        stepToBeat(currentBeat + 1);
+        if (beat.actionLabel) {
+          handleActionTrigger();
+        } else {
+          goToBeat(currentIndex + 1);
+        }
       } else if (e.key === "ArrowUp" || e.key === "ArrowLeft") {
         e.preventDefault();
-        stepToBeat(currentBeat - 1);
+        goToBeat(currentIndex - 1);
       }
     };
 
@@ -207,18 +195,26 @@ export function PrologueExperience() {
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [currentBeat, stepToBeat]);
+  }, [beat.actionLabel, currentIndex, goToBeat, handleActionTrigger]);
 
   return (
     <main className="relative flex h-screen w-full flex-col justify-between overflow-hidden bg-[#0a0d0c] px-6 py-6 text-[#f3efe5] select-none lg:px-12">
-      {/* Fullpage Background Image yang Jelas & Menyatu */}
+      {/* Fullpage Background Image */}
       <FullpageSceneBackdrop
-        currentScene={activeBeat.sceneIndex}
-        isWarping={isWarping}
+        currentScene={beat.sceneIndex}
+        isWarping={isWhiteout || isExiting}
+      />
+
+      {/* Lapisan Cahaya Putih (Whiteout Transisi Menembus Waktu Adegan 04 -> 05) */}
+      <div
+        aria-hidden="true"
+        className={`pointer-events-none fixed inset-0 z-40 bg-[#f7f3ea] transition-opacity duration-1000 ease-in-out ${
+          isWhiteout ? "opacity-100" : "opacity-0"
+        }`}
       />
 
       {/* =========================================================
-          TOP BAR MINIMALIS
+          TOP BAR
       ========================================================= */}
       <header className="relative z-20 flex h-12 items-center justify-between">
         <Link
@@ -237,46 +233,92 @@ export function PrologueExperience() {
 
         <div className="flex items-center gap-4">
           <span className="hidden font-mono text-[11px] uppercase tracking-[0.28em] text-[#c7a66a] sm:inline">
-            {activeBeat.eyebrow} · {activeBeat.title}
+            {beat.sceneCode} · {beat.sceneTitle}
           </span>
 
-          {/* Pastikan nama file mp3 sama dengan yang ada di public/audio/ */}
-          <AmbientSoundToggle audioSrc="/audio/prologue-theme-the-clockwork-overture.mp3" />
+          {/* Pastikan nama file .mp3 di bawah cocok dengan yang ada di public/audio/ */}
+          <AmbientSoundToggle
+            audioSrc="/audio/prologue-mystery-the-unresolved-evening.mp3"
+            secondaryAudioSrc="/audio/prologue-awakening-primordial-wonder.mp3"
+            activeTrack={beat.trackPhase ?? 1}
+            isSilenced={Boolean(beat.silenceMoment)}
+          />
         </div>
       </header>
 
       {/* =========================================================
-          CENTER STAGE: SATU KALIMAT TUNGGAL DI TENGAH LAYAR
+          CENTER STAGE: SINGLE-BEAT CINEMATIC STAGE
       ========================================================= */}
       <section className="relative z-20 mx-auto flex w-full max-w-4xl flex-1 flex-col items-center justify-center px-4 text-center">
-        {/* Penanda Babak */}
+        {/* Penanda Adegan di Atas */}
         <div className="mb-6 flex items-center gap-3 opacity-85">
           <span className="h-px w-8 bg-[#c7a66a]/70" />
           <span className="font-mono text-[11px] uppercase tracking-[0.35em] text-[#c7a66a]">
-            {activeBeat.eyebrow} — {activeBeat.title}
+            {beat.sceneCode} — {beat.sceneTitle}
           </span>
           <span className="h-px w-8 bg-[#c7a66a]/70" />
         </div>
 
-        {/* Kalimat Utama menggunakan Font Display (Cinzel) */}
+        {/* Konten Utama (Kalimat / Dialog / Title Card) */}
         <div
-          ref={sentenceBoxRef}
-          className="flex min-h-32.5 items-center justify-center sm:min-h-37.5"
+          ref={stageRef}
+          className="flex min-h-40 w-full flex-col items-center justify-center sm:min-h-45"
         >
-          <p className="max-w-3xl font-display text-2xl font-normal leading-[1.55] tracking-[0.03em] text-white drop-shadow-[0_4px_28px_rgba(0,0,0,0.95)] sm:text-3xl sm:leading-normal md:text-[2.2rem]">
-            {activeBeat.sentence}
-          </p>
+          {beat.variant === "title-card" ? (
+            <div className="flex flex-col items-center">
+              <span className="font-mono text-xs uppercase tracking-[0.4em] text-[#c7a66a]">
+                THE CENTER · THE BAITUL MAQDIS JOURNEY
+              </span>
+              <h1 className="mt-4 font-display text-3xl tracking-[0.08em] text-white drop-shadow-[0_4px_28px_rgba(0,0,0,0.95)] sm:text-5xl md:text-6xl">
+                CHAPTER 01
+              </h1>
+              <p className="mt-2 font-display text-xl tracking-[0.18em] text-[#c7a66a] sm:text-3xl">
+                THE FIRST FOUNDATIONS
+              </p>
+              <p className="mt-4 font-display text-sm italic tracking-[0.15em] text-stone-300 sm:text-base">
+                Awal Sejarah Tempat-Tempat Suci
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* Penanda Pembicara Minimalis (Khusus Adegan 03 & 04) */}
+              {beat.speaker && (
+                <span
+                  className={`mb-4 font-mono text-[11px] uppercase tracking-[0.35em] ${
+                    beat.speaker === "THE STRANGER"
+                      ? "text-[#c7a66a]"
+                      : "text-stone-300"
+                  }`}
+                >
+                  — {beat.speaker} —
+                </span>
+              )}
+
+              <p
+                className={`max-w-3xl font-display text-2xl leading-[1.55] tracking-[0.03em] drop-shadow-[0_4px_28px_rgba(0,0,0,0.95)] sm:text-3xl sm:leading-normal md:text-[2.2rem] ${
+                  beat.variant === "english-quote" ||
+                  beat.variant === "stranger"
+                    ? "italic text-[#f6eedc]"
+                    : beat.variant === "question"
+                      ? "text-[#e5c990]"
+                      : "text-white"
+                }`}
+              >
+                {beat.text}
+              </p>
+            </>
+          )}
         </div>
 
-        {/* Tombol Portal muncul khusus pada kalimat terakhir */}
+        {/* Tombol Aksi Checkpoint ([MULAI PERJALANAN] atau [LANJUTKAN]) */}
         <div className="mt-8 flex h-12 items-center justify-center">
-          {isLastBeat && (
+          {beat.actionLabel && (
             <Button
-              onClick={enterPortal}
+              onClick={handleActionTrigger}
               onMouseEnter={() => playCinematicSfx("hover")}
-              disabled={isWarping}
+              disabled={isWhiteout || isExiting}
             >
-              Masuki Sejarah
+              {beat.actionLabel}
               <ArrowRight size={15} />
             </Button>
           )}
@@ -284,10 +326,9 @@ export function PrologueExperience() {
       </section>
 
       {/* =========================================================
-          BOTTOM BAR: PROGRESS LINE & SCROLL PROMPT
+          BOTTOM BAR: PROGRESS & NAVIGASI
       ========================================================= */}
       <footer className="relative z-20 flex flex-col gap-3">
-        {/* Garis Progres Tipis Sepanjang Cerita */}
         <div className="h-px w-full overflow-hidden bg-white/15">
           <div
             style={{ width: `${progressPercent}%` }}
@@ -298,8 +339,8 @@ export function PrologueExperience() {
         <div className="flex h-8 items-center justify-between font-mono text-[10px] uppercase tracking-[0.25em] text-stone-300">
           <button
             type="button"
-            onClick={() => stepToBeat(currentBeat - 1)}
-            disabled={currentBeat === 0 || isAnimating}
+            onClick={() => goToBeat(currentIndex - 1)}
+            disabled={currentIndex === 0 || isAnimating}
             className="inline-flex cursor-pointer items-center gap-1.5 transition-colors hover:text-white disabled:pointer-events-none disabled:opacity-25"
           >
             <ArrowUp size={12} className="text-[#c7a66a]" />
@@ -307,8 +348,8 @@ export function PrologueExperience() {
           </button>
 
           <span className="flex items-center gap-2 text-stone-200">
-            {isLastBeat ? (
-              "Akhir Prolog"
+            {beat.actionLabel ? (
+              `Tekan ${beat.actionLabel}`
             ) : (
               <>
                 Scroll untuk Melanjutkan
@@ -322,11 +363,15 @@ export function PrologueExperience() {
 
           <button
             type="button"
-            onClick={() => stepToBeat(currentBeat + 1)}
+            onClick={() =>
+              beat.actionLabel
+                ? handleActionTrigger()
+                : goToBeat(currentIndex + 1)
+            }
             disabled={isAnimating}
             className="inline-flex cursor-pointer items-center gap-1.5 transition-colors hover:text-[#c7a66a] disabled:pointer-events-none disabled:opacity-25"
           >
-            <span>{isLastBeat ? "Masuk" : "Lanjut"}</span>
+            <span>{beat.actionLabel ? beat.actionLabel : "Lanjut"}</span>
             <ArrowDown size={12} className="text-[#c7a66a]" />
           </button>
         </div>
