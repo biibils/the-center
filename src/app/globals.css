@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Alegreya:ital,wght@0,400..600;1,400..600&display=swap");
+
 @import "tailwindcss";
 
 :root {
@@ -42,6 +44,7 @@
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-cinzel);
+  --font-narrative: "Alegreya", Georgia, serif;
 }
 
 * {

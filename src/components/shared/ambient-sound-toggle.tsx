@@ -104,6 +104,7 @@ export function AmbientSoundToggle({
       window.removeEventListener("pointerdown", onInteract);
       window.removeEventListener("keydown", onInteract);
       window.removeEventListener("touchstart", onInteract);
+      window.removeEventListener("center:unlock-audio", onInteract);
     };
 
     const onInteract = async () => {
@@ -116,6 +117,7 @@ export function AmbientSoundToggle({
         window.addEventListener("pointerdown", onInteract, { passive: true });
         window.addEventListener("keydown", onInteract, { passive: true });
         window.addEventListener("touchstart", onInteract, { passive: true });
+        window.addEventListener("center:unlock-audio", onInteract);
       }
     });
 
