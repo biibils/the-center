@@ -12,6 +12,8 @@ import {
 } from "@/components/shared/ambient-sound-toggle";
 import { SeamlessLoopVideo } from "@/components/shared/seamless-loop-video";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
+import { createClient } from "@/lib/supabase/client";
+import { ensureExplorerUserId } from "@/lib/supabase/session";
 
 type ExplorerProfile = {
   displayName: string;
@@ -229,14 +231,17 @@ export function ExplorerRegistration() {
     return true;
   }, [currentStep, form]);
 
-  const finishRegistration = useCallback(() => {
+  const finishRegistration = useCallback(async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setErrorMsg(null);
     playCinematicSfx("portal", 2.0);
+
+    const normalizedUsername = form.username.trim().toLowerCase();
 
     const profile: ExplorerProfile = {
       displayName: form.displayName.trim(),
-      username: form.username.trim().toLowerCase(),
+      username: normalizedUsername,
       bio: form.bio.trim(),
       motivation: form.motivation.trim(),
       curiosity: form.curiosity.trim(),
@@ -244,6 +249,52 @@ export function ExplorerRegistration() {
       createdAt: new Date().toISOString(),
     };
 
+    try {
+      const userId = await ensureExplorerUserId();
+
+      if (userId) {
+        const supabase = createClient();
+
+        const { error: profileError } = await supabase
+          .from("explorer_profiles")
+          .upsert({
+            id: userId,
+            display_name: profile.displayName,
+            username: profile.username,
+            bio: profile.bio,
+            motivation: profile.motivation,
+            curiosity: profile.curiosity,
+            intention: profile.intention,
+            updated_at: new Date().toISOString(),
+          });
+
+        // Kode PostgreSQL 23505 = unique_violation (username sudah terpakai)
+        if (profileError) {
+          if (profileError.code === "23505") {
+            setIsSubmitting(false);
+            setErrorMsg(
+              "Tanda pengenal (@username) ini sudah digunakan penjelajah lain. Kembali ke Langkah 02 untuk memilih nama lain.",
+            );
+            return;
+          }
+          console.error("Supabase profile save error:", profileError.message);
+        } else {
+          // Inisialisasi baris progress awal
+          await supabase.from("explorer_progress").upsert(
+            {
+              user_id: userId,
+              total_xp: 0,
+              completed_chapters: [],
+            },
+            { onConflict: "user_id", ignoreDuplicates: true },
+          );
+        }
+      }
+    } catch (err) {
+      console.error("Unexpected registration sync error:", err);
+    }
+
+    // Simpan cache lokal agar ExplorerHub langsung tampil tanpa flicker
     localStorage.setItem(
       "the-center-explorer-profile",
       JSON.stringify(profile),

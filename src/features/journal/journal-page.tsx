@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -23,6 +23,7 @@ import {
 } from "@/features/journal/journal-service";
 import type { JournalCategory, JournalEntry } from "./types";
 import { ReflectionForm } from "./reflection-form";
+import { syncProgressFromCloud } from "../explorer/progression-service";
 
 const categories: { id: JournalCategory; label: string }[] = [
   { id: "discoveries", label: "Penemuan" },
@@ -70,6 +71,10 @@ export function JournalPage() {
     deleteJournalEntry(entryId);
     refreshEntries();
   }
+
+  useEffect(() => {
+    void syncProgressFromCloud();
+  }, []);
 
   return (
     <main className="min-h-screen bg-[#060807] text-[#f7f3ea] selection:bg-[#e0be7b]/30 selection:text-white">

@@ -1,12 +1,18 @@
-import type { JournalEntry } from "./types";
+import { createClient } from "@/lib/supabase/client";
+import { ensureExplorerUserId } from "@/lib/supabase/session";
+import type {
+  JournalCategory,
+  JournalEntry,
+  JournalEntrySource,
+} from "./types";
 
 const STORAGE_KEY = "the-center-journal";
+const JOURNAL_EVENT = "the-center-journal-updated";
 
 export function getJournalEntries(): JournalEntry[] {
   if (typeof window === "undefined") return [];
 
   const stored = localStorage.getItem(STORAGE_KEY);
-
   if (!stored) return [];
 
   try {
@@ -14,6 +20,45 @@ export function getJournalEntries(): JournalEntry[] {
   } catch {
     return [];
   }
+}
+
+function saveJournalEntries(entries: JournalEntry[]) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
+  window.dispatchEvent(new Event(JOURNAL_EVENT));
+}
+
+export async function syncJournalFromCloud(): Promise<JournalEntry[]> {
+  if (typeof window === "undefined") return [];
+
+  const userId = await ensureExplorerUserId();
+  if (!userId) return getJournalEntries();
+
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("journal_entries")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) {
+    console.error("Failed syncing journal:", error?.message);
+    return getJournalEntries();
+  }
+
+  const mapped: JournalEntry[] = data.map((row) => ({
+    id: row.id,
+    title: row.title,
+    content: row.content,
+    category: row.category as JournalCategory,
+    source: row.source as JournalEntrySource,
+    chapterId: row.chapter_id ?? undefined,
+    locationId: row.location_id ?? undefined,
+    objectId: row.object_id ?? undefined,
+    createdAt: row.created_at,
+  }));
+
+  saveJournalEntries(mapped);
+  return mapped;
 }
 
 export function addJournalEntry(
@@ -27,15 +72,45 @@ export function addJournalEntry(
     createdAt: new Date().toISOString(),
   };
 
-  localStorage.setItem(STORAGE_KEY, JSON.stringify([newEntry, ...entries]));
+  saveJournalEntries([newEntry, ...entries]);
+
+  void (async () => {
+    const userId = await ensureExplorerUserId();
+    if (!userId) return;
+    const supabase = createClient();
+
+    await supabase.from("journal_entries").insert({
+      id: newEntry.id,
+      user_id: userId,
+      title: newEntry.title,
+      content: newEntry.content,
+      category: newEntry.category,
+      source: newEntry.source,
+      chapter_id: newEntry.chapterId ?? null,
+      location_id: newEntry.locationId ?? null,
+      object_id: newEntry.objectId ?? null,
+      created_at: newEntry.createdAt,
+    });
+  })();
 
   return newEntry;
 }
 
 export function deleteJournalEntry(entryId: string): void {
   const entries = getJournalEntries();
-  const updated = entries.filter((entry) => entry.id !== entryId);
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+  saveJournalEntries(entries.filter((entry) => entry.id !== entryId));
+
+  void (async () => {
+    const userId = await ensureExplorerUserId();
+    if (!userId) return;
+    const supabase = createClient();
+
+    await supabase
+      .from("journal_entries")
+      .delete()
+      .eq("id", entryId)
+      .eq("user_id", userId);
+  })();
 }
 
 type RecordDiscoveryInput = {

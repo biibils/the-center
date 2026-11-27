@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -25,7 +25,10 @@ import {
 } from "@/components/shared/ambient-sound-toggle";
 import { SeamlessLoopVideo } from "@/components/shared/seamless-loop-video";
 import type { ExplorerProgress } from "@/features/explorer/progression-types";
-import { subscribeToProgress } from "@/features/explorer/progression-service";
+import {
+  subscribeToProgress,
+  syncProgressFromCloud,
+} from "@/features/explorer/progression-service";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
 
 type ExplorerProfile = {
@@ -159,6 +162,10 @@ export function ExplorerHub() {
   );
 
   const lockedSlotCount = Math.max(0, 4 - progress.badges.length);
+
+  useEffect(() => {
+    void syncProgressFromCloud();
+  }, []);
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#060807] text-[#f7f3ea] selection:bg-[#e0be7b]/30 selection:text-white">
