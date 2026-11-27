@@ -30,6 +30,7 @@ import {
   syncProgressFromCloud,
 } from "@/features/explorer/progression-service";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
+import { CinematicPreloader } from "@/components/shared/cinematic-preloader";
 
 type ExplorerProfile = {
   displayName: string;
@@ -116,6 +117,7 @@ function HudCornerTicks({ active = false }: { active?: boolean }) {
 
 export function ExplorerHub() {
   const [dossierTab, setDossierTab] = useState<"oath" | "log">("oath");
+  const [isHubReady, setIsHubReady] = useState(false);
 
   const savedProgress = useSyncExternalStore(
     subscribeToProgress,
@@ -167,8 +169,32 @@ export function ExplorerHub() {
     void syncProgressFromCloud();
   }, []);
 
+  useEffect(() => {
+    if (!isHubReady) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isHubReady]);
+
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#060807] text-[#f7f3ea] selection:bg-[#e0be7b]/30 selection:text-white">
+      <CinematicPreloader
+        subtitle="MEMBUKA RUANG KENDALI PENJELAJAH..."
+        images={[
+          "/images/prologue/scene-6.webp",
+          "/images/explorer/register.webp",
+        ]}
+        videos={["/videos/explorer/register-loop.mp4"]}
+        audios={["/audio/main-theme-the-discovery.mp3"]}
+        minDurationMs={800}
+        onComplete={() => setIsHubReady(true)}
+      />
+
       {/* =========================================================
           AMBIENT WORLD BACKDROP
       ========================================================= */}

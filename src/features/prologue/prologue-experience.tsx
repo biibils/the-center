@@ -11,8 +11,13 @@ import {
   AmbientSoundToggle,
   playCinematicSfx,
 } from "@/components/shared/ambient-sound-toggle";
-import { FullpageSceneBackdrop } from "./components/fullpage-scene-backdrop";
+import {
+  FullpageSceneBackdrop,
+  PROLOGUE_BACKDROP_IMAGES,
+  PROLOGUE_BACKDROP_VIDEOS,
+} from "./components/fullpage-scene-backdrop";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
+import { CinematicPreloader } from "@/components/shared/cinematic-preloader";
 
 export function PrologueExperience() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -22,6 +27,8 @@ export function PrologueExperience() {
 
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [hoverIndex, setHoverIndex] = useState<number | null>(null);
+
+  const [isPrologueReady, setIsPrologueReady] = useState(false);
 
   const stageRef = useRef<HTMLDivElement>(null);
   const scrubberRef = useRef<HTMLDivElement>(null);
@@ -66,7 +73,7 @@ export function PrologueExperience() {
 
   // Transisi masuk teks perlahan & dramatis
   useEffect(() => {
-    if (!stageRef.current) return;
+    if (!stageRef.current || !isPrologueReady) return;
 
     const ctx = gsap.context(() => {
       gsap.fromTo(
@@ -90,7 +97,7 @@ export function PrologueExperience() {
     }, stageRef);
 
     return () => ctx.revert();
-  }, [currentIndex, isScrubbing]);
+  }, [currentIndex, isPrologueReady, isScrubbing]);
 
   useEffect(() => {
     window.dispatchEvent(
@@ -255,7 +262,13 @@ export function PrologueExperience() {
       window.removeEventListener("touchend", handleTouchEnd);
       window.removeEventListener("keydown", handleKeyDown);
     };
-  }, [beat.actionLabel, currentIndex, goToBeat, handleActionTrigger]);
+  }, [
+    beat.actionLabel,
+    currentIndex,
+    goToBeat,
+    handleActionTrigger,
+    isPrologueReady,
+  ]);
 
   const hoveredBeat =
     hoverIndex !== null ? prologueBeats[hoverIndex] : undefined;
@@ -263,6 +276,17 @@ export function PrologueExperience() {
 
   return (
     <main className="relative flex h-screen w-full flex-col justify-between overflow-hidden bg-[#070908] px-6 py-10 text-[#f7f3ea] select-none lg:px-12">
+      <CinematicPreloader
+        subtitle="MEMASUKI BABAK PROLOG..."
+        images={PROLOGUE_BACKDROP_IMAGES}
+        videos={PROLOGUE_BACKDROP_VIDEOS}
+        audios={[
+          "/audio/prologue-mystery-the-unresolved-evening.mp3",
+          "/audio/prologue-awakening-primordial-wonder.mp3",
+        ]}
+        onComplete={() => setIsPrologueReady(true)}
+      />
+
       {/* Fullpage Background Image */}
       <FullpageSceneBackdrop
         currentScene={beat.sceneIndex}

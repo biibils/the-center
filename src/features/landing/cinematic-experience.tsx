@@ -8,6 +8,7 @@ import { ArrowDown, ArrowRight, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AnimeDepthWorldCanvas } from "./components/anime-depth-world-canvas";
 import { playCinematicSfx } from "@/components/shared/ambient-sound-toggle";
+import { CinematicPreloader } from "@/components/shared/cinematic-preloader";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -60,6 +61,7 @@ export function CinematicExperience() {
   const progressRef = useRef<number>(0);
   const stageRefs = useRef<(HTMLDivElement | null)[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
+  const [isWorldReady, setIsWorldReady] = useState(false);
 
   useEffect(() => {
     const stages = stageRefs.current.filter(Boolean) as HTMLDivElement[];
@@ -173,8 +175,33 @@ export function CinematicExperience() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!isWorldReady) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "";
+      ScrollTrigger.refresh();
+    }
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isWorldReady]);
+
   return (
     <>
+      <CinematicPreloader
+        subtitle="MEMBUKA GERBANG PERADABAN..."
+        requireInteraction
+        enterLabel="Masuk ke The Center"
+        images={[
+          "/images/landing-world.webp",
+          "/images/landing-world-depth.webp",
+        ]}
+        audios={["/audio/landing-the-kingdom-of-wonder.mp3"]}
+        onComplete={() => setIsWorldReady(true)}
+      />
+
       <AnimeDepthWorldCanvas
         progressRef={progressRef}
         colorMapSrc="/images/landing-world.webp"

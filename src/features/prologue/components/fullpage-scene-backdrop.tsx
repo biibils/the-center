@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
-const SCENE_IMAGES = [
+export const PROLOGUE_BACKDROP_IMAGES = [
   "/prologue/scene-1.webp",
   "/prologue/scene-2.webp",
   "/prologue/scene-3.webp",
@@ -11,6 +11,8 @@ const SCENE_IMAGES = [
   "/prologue/scene-5.webp",
   "/prologue/scene-6.webp",
 ];
+
+export const PROLOGUE_BACKDROP_VIDEOS = ["/videos/prologue/scene-5-to-6.mp4"];
 
 interface FullpageSceneBackdropProps {
   currentScene: number;
@@ -35,7 +37,6 @@ export function FullpageSceneBackdrop({
       if (vid) {
         vid.currentTime = 0;
         vid.play().catch(() => {
-          // Fallback jika autoplay video gagal di perangkat tertentu
           setShowTransitionVideo(false);
         });
       }
@@ -46,7 +47,7 @@ export function FullpageSceneBackdrop({
 
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-black">
-      {SCENE_IMAGES.map((src, idx) => {
+      {PROLOGUE_BACKDROP_IMAGES.map((src, idx) => {
         const isActive = idx === currentScene;
 
         return (
@@ -56,28 +57,6 @@ export function FullpageSceneBackdrop({
               isActive ? "opacity-100" : "opacity-0"
             }`}
           >
-            {/* Video Transisi Scene 5 -> Scene 6 (Sekali Putar) */}
-            <video
-              ref={transitionVideoRef}
-              muted
-              playsInline
-              preload="auto"
-              poster="/images/prologue/scene-5.webp"
-              onPlay={() => setShowTransitionVideo(true)}
-              onPause={() => setShowTransitionVideo(false)}
-              onEnded={() => setShowTransitionVideo(false)}
-              className={`pointer-events-none absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-700 ease-out ${
-                showTransitionVideo && currentScene === 5
-                  ? "opacity-100"
-                  : "opacity-0"
-              }`}
-            >
-              <source
-                src="/videos/prologue/scene-5-to-6.mp4"
-                type="video/mp4"
-              />
-            </video>
-
             <Image
               src={src}
               alt=""
@@ -96,10 +75,29 @@ export function FullpageSceneBackdrop({
         );
       })}
 
-      {/* Hanya gradasi tipis di tepi paling bawah untuk keterbacaan timeline bar */}
+      {/* Video Transisi Scene 5 -> Scene 6 (Cukup 1 instance di luar loop) */}
+      <video
+        ref={transitionVideoRef}
+        muted
+        playsInline
+        preload="auto"
+        poster="/prologue/scene-5.webp"
+        onPlay={() => setShowTransitionVideo(true)}
+        onPause={() => setShowTransitionVideo(false)}
+        onEnded={() => setShowTransitionVideo(false)}
+        className={`pointer-events-none absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-700 ease-out ${
+          showTransitionVideo && currentScene === 5
+            ? "opacity-100"
+            : "opacity-0"
+        }`}
+      >
+        <source src="/videos/prologue/scene-5-to-6.mp4" type="video/mp4" />
+      </video>
+
+      {/* Gradasi tipis di tepi bawah untuk keterbacaan timeline bar */}
       <div
         aria-hidden="true"
-        className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-black/55 to-transparent"
+        className="absolute inset-x-0 bottom-0 z-20 h-24 bg-linear-to-t from-black/55 to-transparent"
       />
     </div>
   );

@@ -14,6 +14,7 @@ import { SeamlessLoopVideo } from "@/components/shared/seamless-loop-video";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
 import { createClient } from "@/lib/supabase/client";
 import { ensureExplorerUserId } from "@/lib/supabase/session";
+import { CinematicPreloader } from "@/components/shared/cinematic-preloader";
 
 type ExplorerProfile = {
   displayName: string;
@@ -376,6 +377,13 @@ export function ExplorerRegistration() {
 
   return (
     <main className="relative flex h-dvh w-full flex-col justify-between overflow-hidden bg-[#070908] px-6 py-10 text-[#f7f3ea] select-none lg:px-12">
+      <CinematicPreloader
+        subtitle="MENYIAPKAN RUANG PENJELAJAH..."
+        images={["/images/explorer/register.webp"]}
+        videos={["/videos/explorer/register-loop.mp4"]}
+        audios={["/audio/explorer-the-grand-journey.mp3"]}
+      />
+
       {/* =========================================================
           BACKGROUND IMAGE: Zoom tipis + titik jangkar kanan agar karakter bergeser ke kiri
       ========================================================= */}
