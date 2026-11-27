@@ -11,6 +11,7 @@ import {
   playCinematicSfx,
 } from "@/components/shared/ambient-sound-toggle";
 import { SeamlessLoopVideo } from "@/components/shared/seamless-loop-video";
+import { TheCenterLogo } from "@/components/shared/the-center-logo";
 
 type ExplorerProfile = {
   displayName: string;
@@ -372,13 +373,7 @@ export function ExplorerRegistration() {
           onMouseEnter={() => playCinematicSfx("hover")}
           className="group inline-flex items-center gap-3 text-white transition-colors hover:text-[#e6c687]"
         >
-          <ArrowLeft
-            size={14}
-            className="text-[#e0be7b] drop-shadow-[0_2px_8px_rgba(0,0,0,0.85)] transition-transform duration-300 group-hover:-translate-x-1"
-          />
-          <span className="font-display text-sm tracking-[0.24em] text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
-            THE CENTER
-          </span>
+          <TheCenterLogo href="" size="sm" />
         </Link>
 
         <div className="flex items-center gap-4">

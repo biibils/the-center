@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Compass, Volume2, VolumeX } from "lucide-react";
+import { Volume2, VolumeX } from "lucide-react";
 import { playCinematicSfx } from "@/components/shared/ambient-sound-toggle";
+import { TheCenterLogo } from "@/components/shared/the-center-logo";
 
 const ENTERED_STORAGE_KEY = "center:session-entered";
 const MUTE_STORAGE_KEY = "center:audio-muted";
@@ -97,8 +98,8 @@ export function OpeningGate() {
 
       {/* Konten Utama Terpusat (Tanpa Navbar & Tanpa Header) */}
       <div className="relative z-10 flex max-w-2xl flex-col items-center text-center">
-        <div className="mb-6 flex h-12 w-12 items-center justify-center rounded-full border border-[#c7a66a]/40 bg-[#c7a66a]/10 text-[#e0be7b] shadow-[0_0_24px_rgba(199,166,106,0.2)]">
-          <Compass size={22} strokeWidth={1.5} />
+        <div className="mb-6 flex justify-center">
+          <TheCenterLogo href="" size="lg" showText={false} />
         </div>
 
         <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-[#d8b878]">

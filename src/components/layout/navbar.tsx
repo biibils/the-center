@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { TheCenterLogo } from "@/components/shared/the-center-logo";
 import { Container } from "@/components/ui/container";
 import { AmbientSoundToggle } from "../shared/ambient-sound-toggle";
 
@@ -64,18 +65,13 @@ export function Navbar() {
     <header className="fixed top-0 z-50 w-full border-b border-border/80 bg-background/45 backdrop-blur-md transition-colors">
       <Container>
         <nav className="flex h-20 items-center justify-between">
-          <Link
+          <TheCenterLogo
             href="/"
+            size="md"
+            adaptiveTheme
+            subtitle="CIVILIZATION BUILDING ECOSYSTEM"
             onClick={(e) => handleNavigate(e, 0)}
-            className="flex flex-col"
-          >
-            <span className="font-display text-xl tracking-[0.2em]">
-              THE CENTER
-            </span>
-            <span className="text-[9px] tracking-[0.25em] text-muted">
-              CIVILIZATION BUILDING ECOSYSTEM
-            </span>
-          </Link>
+          />
 
           <div className="hidden items-center gap-8 md:flex">
             {navItems.map((item) => {
@@ -96,7 +92,7 @@ export function Navbar() {
                   {item.label}
                   {/* Garis indikator aktif khas editorial */}
                   <span
-                    className={`absolute inset-x-0 -bottom-1 h-px bg-accent transition-transform duration-300 origin-left ${
+                    className={`absolute inset-x-0 -bottom-1 h-px origin-left bg-accent transition-transform duration-300 ${
                       active ? "scale-x-100" : "scale-x-0"
                     }`}
                   />

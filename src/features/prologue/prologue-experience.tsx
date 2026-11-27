@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import gsap from "gsap";
-import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUp } from "lucide-react";
 import { prologueBeats } from "@/content/prologue";
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +12,7 @@ import {
   playCinematicSfx,
 } from "@/components/shared/ambient-sound-toggle";
 import { FullpageSceneBackdrop } from "./components/fullpage-scene-backdrop";
+import { TheCenterLogo } from "@/components/shared/the-center-logo";
 
 export function PrologueExperience() {
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -315,13 +316,7 @@ export function PrologueExperience() {
           onMouseEnter={() => playCinematicSfx("hover")}
           className="group inline-flex items-center gap-3 text-white transition-colors hover:text-[#e6c687]"
         >
-          <ArrowLeft
-            size={14}
-            className="text-[#e0be7b] transition-transform duration-300 group-hover:-translate-x-1"
-          />
-          <span className="font-display text-sm tracking-[0.24em] text-white">
-            THE CENTER
-          </span>
+          <TheCenterLogo href="" size="sm" />
         </Link>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -357,7 +352,7 @@ export function PrologueExperience() {
           {isTitleCard ? (
             <div className="flex flex-col items-center">
               <span className="font-mono text-xs font-semibold uppercase tracking-[0.42em] text-[#f0d399]">
-                THE BAITUL MAQDIS CHRONICLES
+                THE CENTER
               </span>
               <h1 className="mt-4 font-display text-5xl tracking-[0.18em] text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)] sm:text-6xl md:text-[4.5rem]">
                 PROLOGUE
