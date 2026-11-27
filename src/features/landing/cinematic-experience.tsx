@@ -212,9 +212,9 @@ export function CinematicExperience() {
             <div className="flex items-center gap-3">
               <span
                 aria-hidden="true"
-                className="hidden h-px w-6 bg-amber-800/80 dark:bg-accent/80 md:inline-block"
+                className="hidden h-px w-6 bg-accent/80 dark:bg-accent/80 md:inline-block"
               />
-              <p className="font-mono text-sm font-bold uppercase tracking-[0.28em] text-amber-800 [text-shadow:0_1px_12px_var(--background),0_0_24px_var(--background)] dark:text-accent sm:text-[13px]">
+              <p className="font-mono text-sm font-bold uppercase tracking-[0.28em] text-accent [text-shadow:0_1px_12px_var(--background),0_0_24px_var(--background)] dark:text-accent sm:text-[13px]">
                 Perjalanan Melampaui Waktu
               </p>
             </div>
