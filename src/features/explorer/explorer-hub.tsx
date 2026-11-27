@@ -17,6 +17,7 @@ import {
   Shield,
   Sparkles,
   Swords,
+  LogOut,
 } from "lucide-react";
 import { Container } from "@/components/ui/container";
 import {
@@ -31,6 +32,9 @@ import {
 } from "@/features/explorer/progression-service";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
 import { CinematicPreloader } from "@/components/shared/cinematic-preloader";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { syncAllExplorerData } from "@/lib/supabase/session";
 
 type ExplorerProfile = {
   displayName: string;
@@ -118,6 +122,12 @@ function HudCornerTicks({ active = false }: { active?: boolean }) {
 export function ExplorerHub() {
   const [dossierTab, setDossierTab] = useState<"oath" | "log">("oath");
   const [isHubReady, setIsHubReady] = useState(false);
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  useEffect(() => {
+    void syncAllExplorerData();
+  }, []);
 
   const savedProgress = useSyncExternalStore(
     subscribeToProgress,
@@ -180,6 +190,27 @@ export function ExplorerHub() {
       document.body.style.overflow = "";
     };
   }, [isHubReady]);
+
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    playCinematicSfx("hover");
+
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+
+      // Bersihkan cache lokal agar tidak terbawa ke akun berikutnya
+      localStorage.removeItem("the-center-explorer-profile");
+      localStorage.removeItem("the-center-explorer-progress");
+      localStorage.removeItem("the-center-journal");
+
+      router.push("/login");
+    } catch (err) {
+      console.error("Logout error:", err);
+      setIsLoggingOut(false);
+    }
+  };
 
   return (
     <main className="relative min-h-screen overflow-x-hidden bg-[#060807] text-[#f7f3ea] selection:bg-[#e0be7b]/30 selection:text-white">
@@ -271,6 +302,21 @@ export function ExplorerHub() {
                 activeTrack={1}
                 volume={0.13}
               />
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                onMouseEnter={() => playCinematicSfx("hover")}
+                title="Keluar dari Akun"
+                aria-label="Keluar dari Akun"
+                className="inline-flex cursor-pointer items-center gap-2 border border-white/15 bg-white/3 px-3 py-1.5 font-mono text-[10px] uppercase tracking-[0.2em] text-stone-300 transition-colors hover:border-rose-400/60 hover:bg-rose-500/10 hover:text-rose-200 disabled:opacity-50"
+              >
+                <LogOut size={12} className="text-rose-400/90" />
+                <span className="hidden md:inline">
+                  {isLoggingOut ? "Keluar..." : "Keluar"}
+                </span>
+              </button>
             </div>
           </div>
         </Container>

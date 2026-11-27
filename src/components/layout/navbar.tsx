@@ -6,6 +6,9 @@ import { usePathname } from "next/navigation";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
 import { Container } from "@/components/ui/container";
 import { AmbientSoundToggle } from "../shared/ambient-sound-toggle";
+import { Compass, LogIn } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
+import { playCinematicSfx } from "@/components/shared/ambient-sound-toggle";
 
 const navItems = [
   { label: "Journey", hash: "journey", chapterIndex: 1 },
@@ -16,6 +19,7 @@ export function Navbar() {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [activeChapter, setActiveChapter] = useState<number>(0);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Dengarkan perubahan babak dari CinematicExperience untuk highlight menu aktif
   useEffect(() => {
@@ -59,6 +63,22 @@ export function Navbar() {
     return false;
   };
 
+  useEffect(() => {
+    const supabase = createClient();
+
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setIsAuthenticated(Boolean(user));
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(Boolean(session?.user));
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   return (
     <header className="fixed top-0 z-50 w-full border-b border-border/80 bg-background/45 backdrop-blur-md transition-colors">
       <Container>
@@ -101,6 +121,24 @@ export function Navbar() {
 
           <div className="flex items-center gap-3">
             <AmbientSoundToggle />
+
+            <Link
+              href={isAuthenticated ? "/explorer" : "/login"}
+              onMouseEnter={() => playCinematicSfx("hover")}
+              className="inline-flex items-center gap-2 border border-white/20 bg-background/70 px-3.5 py-1.5 font-mono text-[10px] font-semibold uppercase tracking-[0.22em] text-foreground backdrop-blur-md transition-all hover:border-accent hover:text-accent"
+            >
+              {isAuthenticated ? (
+                <>
+                  <Compass size={12} className="text-accent" />
+                  <span>Sanctuary</span>
+                </>
+              ) : (
+                <>
+                  <LogIn size={12} className="text-accent" />
+                  <span>Masuk</span>
+                </>
+              )}
+            </Link>
           </div>
         </nav>
       </Container>
