@@ -32,6 +32,12 @@ export function addJournalEntry(
   return newEntry;
 }
 
+export function deleteJournalEntry(entryId: string): void {
+  const entries = getJournalEntries();
+  const updated = entries.filter((entry) => entry.id !== entryId);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
+}
+
 type RecordDiscoveryInput = {
   title: string;
   content: string;

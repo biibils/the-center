@@ -4,11 +4,85 @@ import { useEffect, useRef, useState } from "react";
 
 type SfxType = "transition" | "hover" | "portal";
 
-export function playCinematicSfx(type: SfxType) {
+const MUTE_STORAGE_KEY = "center:audio-muted";
+
+let sharedSfxCtx: AudioContext | null = null;
+
+function getSfxContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedSfxCtx) {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof AudioContext })
+        .webkitAudioContext;
+    if (AudioCtx) {
+      sharedSfxCtx = new AudioCtx();
+    }
+  }
+  if (sharedSfxCtx && sharedSfxCtx.state === "suspended") {
+    sharedSfxCtx.resume().catch(() => {});
+  }
+  return sharedSfxCtx;
+}
+
+export function playCinematicSfx(type: SfxType = "hover", boost = 1.65) {
   if (typeof window === "undefined") return;
-  window.dispatchEvent(
-    new CustomEvent("center:play-sfx", { detail: { type } }),
-  );
+  if (sessionStorage.getItem(MUTE_STORAGE_KEY) === "true") return;
+
+  try {
+    const ctx = getSfxContext();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (type === "hover") {
+      // Soft tactile tick
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(540, now);
+      osc.frequency.exponentialRampToValueAtTime(780, now + 0.045);
+
+      const peak = Math.min(0.32, 0.08 * boost);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
+
+      osc.start(now);
+      osc.stop(now + 0.065);
+    } else if (type === "transition") {
+      // Crisp step confirmation chime
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(360, now);
+      osc.frequency.exponentialRampToValueAtTime(660, now + 0.14);
+
+      const peak = Math.min(0.4, 0.13 * boost);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.19);
+
+      osc.start(now);
+      osc.stop(now + 0.2);
+    } else if (type === "portal") {
+      // Deep resonant submit chord
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(196, now);
+      osc.frequency.exponentialRampToValueAtTime(440, now + 0.36);
+
+      const peak = Math.min(0.45, 0.16 * boost);
+      gain.gain.setValueAtTime(0.001, now);
+      gain.gain.linearRampToValueAtTime(peak, now + 0.05);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.44);
+
+      osc.start(now);
+      osc.stop(now + 0.46);
+    }
+  } catch {
+    // Abaikan jika browser memblokir AudioContext sebelum interaksi
+  }
 }
 
 interface AmbientSoundToggleProps {
@@ -16,28 +90,29 @@ interface AmbientSoundToggleProps {
   secondaryAudioSrc?: string;
   activeTrack?: 1 | 2;
   isSilenced?: boolean;
+  volume?: number;
 }
-
-const MUTE_STORAGE_KEY = "center:audio-muted";
 
 export function AmbientSoundToggle({
   audioSrc = "/audio/landing-the-kingdom-of-wonder.mp3",
   secondaryAudioSrc,
   activeTrack = 1,
   isSilenced = false,
+  volume = 0.65,
 }: AmbientSoundToggleProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const track1Ref = useRef<HTMLAudioElement | null>(null);
   const track2Ref = useRef<HTMLAudioElement | null>(null);
-  const sfxCtxRef = useRef<AudioContext | null>(null);
   const isPlayingRef = useRef(false);
   const activeTrackRef = useRef(activeTrack);
   const isSilencedRef = useRef(isSilenced);
+  const volumeRef = useRef(volume);
 
   useEffect(() => {
     activeTrackRef.current = activeTrack;
     isSilencedRef.current = isSilenced;
-  }, [activeTrack, isSilenced]);
+    volumeRef.current = volume;
+  }, [activeTrack, isSilenced, volume]);
 
   const fadeAudio = (
     audio: HTMLAudioElement | null,
@@ -93,7 +168,10 @@ export function AmbientSoundToggle({
         await target.play();
         setIsPlaying(true);
         isPlayingRef.current = true;
-        fadeAudio(target, isSilencedRef.current ? 0.08 : 0.65, 1400);
+        const targetVolume = isSilencedRef.current
+          ? Math.min(0.08, volumeRef.current)
+          : volumeRef.current;
+        fadeAudio(target, targetVolume, 1400);
         return true;
       } catch {
         return false;
@@ -132,7 +210,7 @@ export function AmbientSoundToggle({
     };
   }, [audioSrc, secondaryAudioSrc]);
 
-  // Crossfade otomatis saat activeTrack berubah (Track 1 <-> Track 2) atau momen hening
+  // Crossfade otomatis saat activeTrack, isSilenced, atau volume berubah
   useEffect(() => {
     if (!isPlayingRef.current) return;
     const a1 = track1Ref.current;
@@ -141,58 +219,17 @@ export function AmbientSoundToggle({
     if (activeTrack === 2 && a2) {
       if (a2.paused) a2.play().catch(() => {});
       fadeAudio(a1, 0, 1800, true);
-      fadeAudio(a2, isSilenced ? 0.08 : 0.72, 2200);
+      fadeAudio(
+        a2,
+        isSilenced ? Math.min(0.08, volume) : Math.min(1, volume * 1.1),
+        2200,
+      );
     } else if (a1) {
       if (a1.paused) a1.play().catch(() => {});
       fadeAudio(a2, 0, 1400, true);
-      fadeAudio(a1, isSilenced ? 0.06 : 0.65, 1400);
+      fadeAudio(a1, isSilenced ? Math.min(0.06, volume) : volume, 1400);
     }
-  }, [activeTrack, isSilenced]);
-
-  const triggerSfx = (type: SfxType) => {
-    if (!isPlayingRef.current) return;
-
-    if (!sfxCtxRef.current) {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext })
-          .webkitAudioContext;
-      sfxCtxRef.current = new AudioCtx();
-    }
-
-    const ctx = sfxCtxRef.current;
-    if (ctx.state === "suspended") ctx.resume();
-    const now = ctx.currentTime;
-
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    if (type === "hover") {
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(760, now);
-      osc.frequency.exponentialRampToValueAtTime(420, now + 0.05);
-      gain.gain.setValueAtTime(0.012, now);
-      gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.05);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.06);
-      return;
-    }
-
-    osc.type = "triangle";
-    osc.frequency.setValueAtTime(type === "portal" ? 587.33 : 440, now);
-    gain.gain.setValueAtTime(0.0001, now);
-    gain.gain.linearRampToValueAtTime(
-      type === "portal" ? 0.06 : 0.035,
-      now + 0.08,
-    );
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 1.9);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start(now);
-    osc.stop(now + 2.0);
-  };
+  }, [activeTrack, isSilenced, volume]);
 
   const toggleSound = async () => {
     const a1 = track1Ref.current;
@@ -206,7 +243,11 @@ export function AmbientSoundToggle({
         await activeAudio.play();
         setIsPlaying(true);
         isPlayingRef.current = true;
-        fadeAudio(activeAudio, isSilenced ? 0.08 : 0.65, 1100);
+        fadeAudio(
+          activeAudio,
+          isSilenced ? Math.min(0.08, volume) : volume,
+          1100,
+        );
       } catch (err) {
         console.error("Audio playback error:", err);
       }
@@ -221,10 +262,10 @@ export function AmbientSoundToggle({
 
   useEffect(() => {
     const onSfx = (e: Event) => {
-      const custom = e as CustomEvent<{ type: SfxType }>;
-      triggerSfx(custom.detail.type);
+      const custom = e as CustomEvent<{ type: SfxType; boost?: number }>;
+      playCinematicSfx(custom.detail.type, custom.detail.boost ?? 1.65);
     };
-    const onChapterChange = () => triggerSfx("transition");
+    const onChapterChange = () => playCinematicSfx("transition", 1.5);
 
     window.addEventListener("center:play-sfx", onSfx);
     window.addEventListener("center:chapter-change", onChapterChange);
@@ -239,7 +280,7 @@ export function AmbientSoundToggle({
       type="button"
       onClick={toggleSound}
       aria-label={isPlaying ? "Matikan musik latar" : "Nyalakan musik latar"}
-      className="group relative inline-flex cursor-pointer items-center gap-2.5 border border-white/20 bg-background/70 text-foreground hover:border-accent px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] backdrop-blur-md transition-all"
+      className="group relative inline-flex cursor-pointer items-center gap-2.5 border border-white/20 bg-background/70 px-3.5 py-1.5 font-mono text-[10px] uppercase tracking-[0.22em] text-foreground backdrop-blur-md transition-all hover:border-accent"
     >
       <span className="flex h-3 items-end gap-[2.5px]" aria-hidden="true">
         <span

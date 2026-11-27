@@ -3,14 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
 import { Container } from "@/components/ui/container";
 import { AmbientSoundToggle } from "../shared/ambient-sound-toggle";
 
 const navItems = [
-  { label: "Misi Kami", hash: "mission", chapterIndex: 0 },
-  { label: "The Journey", hash: "journey", chapterIndex: 1 },
+  { label: "Journey", hash: "journey", chapterIndex: 1 },
   { label: "Tentang Kami", hash: "about", chapterIndex: 5 },
 ];
 
@@ -103,7 +101,6 @@ export function Navbar() {
 
           <div className="flex items-center gap-3">
             <AmbientSoundToggle />
-            <ThemeToggle />
           </div>
         </nav>
       </Container>

@@ -103,7 +103,7 @@ export function OpeningGate() {
         </div>
 
         <span className="font-mono text-[11px] uppercase tracking-[0.4em] text-[#d8b878]">
-          THE BAITUL MAQDIS JOURNEY
+          THE CENTER - BAITUL MAQDIS JOURNEY
         </span>
 
         <h1 className="mt-4 font-display text-3xl tracking-[0.14em] text-white sm:text-5xl md:text-6xl">

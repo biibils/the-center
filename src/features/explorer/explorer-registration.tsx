@@ -232,7 +232,7 @@ export function ExplorerRegistration() {
   const finishRegistration = useCallback(() => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    playCinematicSfx("portal");
+    playCinematicSfx("portal", 2.0);
 
     const profile: ExplorerProfile = {
       displayName: form.displayName.trim(),
@@ -276,7 +276,7 @@ export function ExplorerRegistration() {
 
       setErrorMsg(null);
       setIsAnimating(true);
-      playCinematicSfx("transition");
+      playCinematicSfx("transition", 1.9);
 
       if (!stageRef.current) {
         setStepIndex(nextIndex);
@@ -384,6 +384,7 @@ export function ExplorerRegistration() {
           <AmbientSoundToggle
             audioSrc="/audio/explorer-the-grand-journey.mp3"
             activeTrack={1}
+            volume={0.13}
           />
         </div>
       </header>
@@ -491,6 +492,7 @@ export function ExplorerRegistration() {
                     updateField(currentStep.field!, e.target.value)
                   }
                   onKeyDown={handleKeyDown}
+                  onFocus={() => playCinematicSfx("hover", 1.6)}
                   placeholder={currentStep.placeholder}
                   autoComplete="off"
                   className="w-full bg-transparent font-sans text-sm tracking-[0.04em] text-[#fdfbf7] placeholder:text-stone-400/60 focus:outline-none select-text sm:text-base"
@@ -543,6 +545,7 @@ export function ExplorerRegistration() {
                     updateField(currentStep.field!, e.target.value)
                   }
                   onKeyDown={handleKeyDown}
+                  onFocus={() => playCinematicSfx("hover", 1.6)}
                   placeholder={currentStep.placeholder}
                   className="w-full resize-none bg-transparent font-sans text-sm leading-relaxed tracking-[0.02em] text-[#fdfbf7] placeholder:text-stone-400/60 focus:outline-none select-text sm:text-[15px]"
                 />
@@ -559,7 +562,7 @@ export function ExplorerRegistration() {
           {/* Pesan Validasi Inline */}
           {errorMsg && (
             <p className="mt-3 font-mono text-xs font-medium tracking-[0.08em] text-amber-300 [text-shadow:0_1px_10px_rgba(0,0,0,0.95)]">
-              * {errorMsg}
+              {errorMsg}
             </p>
           )}
 

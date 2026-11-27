@@ -42,6 +42,19 @@ const PROFILE_STORAGE_KEY = "the-center-explorer-profile";
 const PROGRESS_STORAGE_KEY = "the-center-explorer-progress";
 const XP_PER_LEVEL = 100;
 
+function renderRelicIcon(iconKey: string) {
+  switch (iconKey) {
+    case "compass":
+      return <Compass size={17} className="text-[#f5d99e]" />;
+    case "scroll":
+      return <ScrollText size={17} className="text-[#f5d99e]" />;
+    case "shield":
+      return <Shield size={17} className="text-[#f5d99e]" />;
+    default:
+      return <span className="text-sm text-[#f5d99e]">{iconKey || "◆"}</span>;
+  }
+}
+
 function subscribeToProfile(callback: () => void) {
   window.addEventListener("storage", callback);
   return () => window.removeEventListener("storage", callback);
@@ -223,6 +236,7 @@ export function ExplorerHub() {
               <AmbientSoundToggle
                 audioSrc="/audio/main-theme-the-discovery.mp3"
                 activeTrack={1}
+                volume={0.13}
               />
             </div>
           </div>
@@ -666,7 +680,7 @@ export function ExplorerHub() {
                           className="flex items-start gap-3 border border-[#e0be7b]/40 bg-[#e0be7b]/10 p-3"
                         >
                           <span className="flex h-9 w-9 shrink-0 items-center justify-center border border-[#f5d99e]/50 bg-[#070908]/80 text-lg">
-                            {badge.icon}
+                            {renderRelicIcon(badge.icon)}
                           </span>
                           <div className="min-w-0">
                             <h4 className="truncate font-display text-sm text-[#f5d99e]">

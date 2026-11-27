@@ -14,6 +14,15 @@ const INITIAL_PROGRESS: ExplorerProgress = {
   activities: [],
 };
 
+const CHAPTER_BADGES: Record<string, Omit<ExplorerBadge, "earnedAt">> = {
+  "chapter-01": {
+    id: "the-first-discovery",
+    title: "The First Discovery",
+    description: "Menyelesaikan investigasi dan perjalanan Chapter 01.",
+    icon: "compass",
+  },
+};
+
 export function getExplorerProgress(): ExplorerProgress {
   if (typeof window === "undefined") {
     return INITIAL_PROGRESS;
@@ -106,12 +115,10 @@ export function completeChapter(chapterId: string): boolean {
 
   awardXP("Chapter Completion", `Menyelesaikan ${chapterId}`, 100);
 
-  awardBadge({
-    id: "the-first-discovery",
-    title: "The First Discovery",
-    description: "Menyelesaikan investigasi dan perjalanan Chapter 01.",
-    icon: "compass",
-  });
+  const chapterBadge = CHAPTER_BADGES[chapterId];
+  if (chapterBadge) {
+    awardBadge(chapterBadge);
+  }
 
   return true;
 }
