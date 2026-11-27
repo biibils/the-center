@@ -21,7 +21,7 @@ interface AmbientSoundToggleProps {
 const MUTE_STORAGE_KEY = "center:audio-muted";
 
 export function AmbientSoundToggle({
-  audioSrc = "/audio/main-theme-the-discovery.mp3",
+  audioSrc = "/audio/landing-the-kingdom-of-wonder.mp3",
   secondaryAudioSrc,
   activeTrack = 1,
   isSilenced = false,

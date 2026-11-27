@@ -261,7 +261,7 @@ export function PrologueExperience() {
   const isTitleCard = beat.variant === "title-card";
 
   return (
-    <main className="relative flex h-screen w-full flex-col justify-between overflow-hidden bg-[#070908] px-6 py-6 text-[#f7f3ea] select-none lg:px-12">
+    <main className="relative flex h-screen w-full flex-col justify-between overflow-hidden bg-[#070908] px-6 py-10 text-[#f7f3ea] select-none lg:px-12">
       {/* Fullpage Background Image */}
       <FullpageSceneBackdrop
         currentScene={beat.sceneIndex}
@@ -309,7 +309,7 @@ export function PrologueExperience() {
       {/* =========================================================
           TOP BAR
       ========================================================= */}
-      <header className="relative z-20 flex h-18 items-center justify-between">
+      <header className="relative z-20 flex h-12 items-center justify-between">
         <Link
           href="/"
           onMouseEnter={() => playCinematicSfx("hover")}
@@ -357,21 +357,21 @@ export function PrologueExperience() {
           {isTitleCard ? (
             <div className="flex flex-col items-center">
               <span className="font-mono text-xs font-semibold uppercase tracking-[0.42em] text-[#f0d399]">
-                THE CENTER · THE BAITUL MAQDIS JOURNEY
+                THE BAITUL MAQDIS CHRONICLES
               </span>
-              <h1 className="mt-4 font-display text-4xl tracking-[0.12em] text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)] sm:text-6xl md:text-[4rem]">
-                CHAPTER 01
+              <h1 className="mt-4 font-display text-5xl tracking-[0.18em] text-white drop-shadow-[0_4px_24px_rgba(0,0,0,0.85)] sm:text-6xl md:text-[4.5rem]">
+                PROLOGUE
               </h1>
-              <p className="mt-2 font-display text-xl tracking-[0.22em] text-[#f0d399] sm:text-3xl">
-                THE FIRST FOUNDATIONS
+              <p className="mt-2 font-display text-lg tracking-[0.28em] text-[#f0d399] sm:text-2xl">
+                WHERE HISTORY BEGINS
               </p>
-              <div className="my-4 flex items-center gap-3 text-[#e0be7b]">
-                <span className="h-px w-12 bg-[#e0be7b]/75" />
+              <div className="my-5 flex items-center gap-3 text-[#e0be7b]">
+                <span className="h-px w-14 bg-linear-to-r from-transparent to-[#e0be7b]/85" />
                 <span className="text-[10px]">◆</span>
-                <span className="h-px w-12 bg-[#e0be7b]/75" />
+                <span className="h-px w-14 bg-linear-to-l from-transparent to-[#e0be7b]/85" />
               </div>
-              <p className="font-sans text-sm tracking-[0.12em] text-stone-200 sm:text-base">
-                Awal Sejarah Tempat-Tempat Suci
+              <p className="max-w-md font-narrative text-base italic tracking-[0.04em] text-stone-200 sm:text-lg">
+                “Di bumi yang sunyi ini, kamu baru saja mulai.”
               </p>
             </div>
           ) : beat.variant === "stranger" || beat.variant === "explorer" ? (

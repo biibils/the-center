@@ -550,22 +550,13 @@ export const prologueBeats: PrologueBeat[] = [
   // ADEGAN 06 — AWAL PERJALANAN
   // =========================================================================
   {
-    id: "s6-title",
-    sceneIndex: 5,
-    sceneCode: "ADEGAN 06",
-    sceneTitle: "Awal Perjalanan",
-    variant: "title-card",
-    trackPhase: 2,
-    text: "CHAPTER 01 — THE FIRST FOUNDATIONS",
-  },
-  {
     id: "s6-1",
     sceneIndex: 5,
     sceneCode: "ADEGAN 06",
     sceneTitle: "Awal Perjalanan",
     variant: "narration",
     trackPhase: 2,
-    text: "Setiap perjalanan memiliki permulaan.",
+    text: "Di bawah langit yang masih kosong, belum ada nama, belum ada batas, dan belum ada riwayat yang tertulis.",
   },
   {
     id: "s6-2",
@@ -574,7 +565,25 @@ export const prologueBeats: PrologueBeat[] = [
     sceneTitle: "Awal Perjalanan",
     variant: "narration",
     trackPhase: 2,
-    actionLabel: "LANJUTKAN", // Masuk ke halaman Interlude (/explorer/register)
-    text: "Dan perjalanan ini... dimulai dari awal kehidupan manusia.",
+    text: "Namun setiap perjalanan besar selalu memiliki titik mula.",
+  },
+  {
+    id: "s6-3",
+    sceneIndex: 5,
+    sceneCode: "ADEGAN 06",
+    sceneTitle: "Awal Perjalanan",
+    variant: "narration",
+    trackPhase: 2,
+    text: "Dan kisah ini... dimulai dari langkah pertama manusia di muka bumi.",
+  },
+  {
+    id: "s6-title",
+    sceneIndex: 5,
+    sceneCode: "ADEGAN 06",
+    sceneTitle: "Awal Perjalanan",
+    variant: "title-card",
+    trackPhase: 2,
+    actionLabel: "LANJUTKAN",
+    text: "PROLOGUE — WHERE HISTORY BEGINS",
   },
 ];

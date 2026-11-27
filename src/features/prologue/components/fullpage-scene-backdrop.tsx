@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useRef, useState } from "react";
 
 const SCENE_IMAGES = [
   "/prologue/scene-1.webp",
@@ -20,6 +21,29 @@ export function FullpageSceneBackdrop({
   currentScene,
   isWarping = false,
 }: FullpageSceneBackdropProps) {
+  const prevSceneRef = useRef<number>(currentScene);
+  const transitionVideoRef = useRef<HTMLVideoElement | null>(null);
+  const [showTransitionVideo, setShowTransitionVideo] = useState(false);
+
+  useEffect(() => {
+    const prev = prevSceneRef.current;
+    prevSceneRef.current = currentScene;
+
+    // Putar video transisi hanya saat maju berurutan dari Scene 5 (index 4) ke Scene 6 (index 5)
+    if (prev === 4 && currentScene === 5) {
+      const vid = transitionVideoRef.current;
+      if (vid) {
+        vid.currentTime = 0;
+        vid.play().catch(() => {
+          // Fallback jika autoplay video gagal di perangkat tertentu
+          setShowTransitionVideo(false);
+        });
+      }
+    } else if (currentScene !== 5) {
+      transitionVideoRef.current?.pause();
+    }
+  }, [currentScene]);
+
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden bg-black">
       {SCENE_IMAGES.map((src, idx) => {
@@ -32,6 +56,28 @@ export function FullpageSceneBackdrop({
               isActive ? "opacity-100" : "opacity-0"
             }`}
           >
+            {/* Video Transisi Scene 5 -> Scene 6 (Sekali Putar) */}
+            <video
+              ref={transitionVideoRef}
+              muted
+              playsInline
+              preload="auto"
+              poster="/images/prologue/scene-5.webp"
+              onPlay={() => setShowTransitionVideo(true)}
+              onPause={() => setShowTransitionVideo(false)}
+              onEnded={() => setShowTransitionVideo(false)}
+              className={`pointer-events-none absolute inset-0 z-10 h-full w-full object-cover transition-opacity duration-700 ease-out ${
+                showTransitionVideo && currentScene === 5
+                  ? "opacity-100"
+                  : "opacity-0"
+              }`}
+            >
+              <source
+                src="/videos/prologue/scene-5-to-6.mp4"
+                type="video/mp4"
+              />
+            </video>
+
             <Image
               src={src}
               alt=""
