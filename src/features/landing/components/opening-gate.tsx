@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { Volume2, VolumeX } from "lucide-react";
+import { Monitor, Volume2, VolumeX } from "lucide-react";
 import { playCinematicSfx } from "@/components/shared/ambient-sound-toggle";
 import { TheCenterLogo } from "@/components/shared/the-center-logo";
 
@@ -31,13 +31,11 @@ export function OpeningGate() {
   const isVisible = hasNotEntered && !isDismissed;
 
   useEffect(() => {
-    // Pastikan posisi awal selalu di paling atas (index-0)
     if (isVisible) {
       window.scrollTo(0, 0);
     }
   }, [isVisible]);
 
-  // Kunci scroll selama tirai pembuka aktif
   useEffect(() => {
     if (isVisible) {
       window.scrollTo(0, 0);
@@ -54,7 +52,6 @@ export function OpeningGate() {
     e: React.MouseEvent<HTMLButtonElement>,
     withAudio: boolean,
   ) => {
-    // Cegah event klik bocor ke listener CinematicExperience (penyebab loncat ke index-1)
     e.stopPropagation();
     if (isFadingOut) return;
 
@@ -96,7 +93,7 @@ export function OpeningGate() {
         <span className="absolute -bottom-px -right-px h-4 w-4 border-b border-r border-[#e0be7b]" />
       </div>
 
-      {/* Konten Utama Terpusat (Tanpa Navbar & Tanpa Header) */}
+      {/* Konten Utama Terpusat */}
       <div className="relative z-10 flex max-w-2xl flex-col items-center text-center">
         <div className="mb-6 flex justify-center">
           <TheCenterLogo href="" size="lg" showText={false} />
@@ -142,6 +139,17 @@ export function OpeningGate() {
           <VolumeX size={12} />
           <span>Masuk Tanpa Suara</span>
         </button>
+
+        {/* Catatan Optimalisasi Desktop (Hanya tampil di Mobile / Tablet) */}
+        <div className="mt-8 flex max-w-xs items-start gap-2.5 border border-[#e0be7b]/30 bg-[#0b0e0c]/85 px-3.5 py-2.5 text-left lg:hidden">
+          <Monitor size={14} className="mt-0.5 shrink-0 text-[#e0be7b]" />
+          <p className="font-mono text-[10px] leading-relaxed tracking-[0.06em] text-stone-300">
+            <span className="font-semibold text-[#f5d99e]">CATATAN:</span>{" "}
+            Tampilan visual dan latar sinematik website ini saat ini lebih
+            optimal diakses melalui{" "}
+            <span className="text-white">Desktop / Laptop</span>.
+          </p>
+        </div>
       </div>
     </div>
   );
