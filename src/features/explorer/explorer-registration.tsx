@@ -119,8 +119,7 @@ const REGISTRATION_STEPS: RegistrationStep[] = [
     type: "textarea",
     field: "bio",
     title: "Sedikit tentang dirimu",
-    description:
-      "Ceritakan secara singkat siapa dirimu saat ini. Langkah ini bersifat opsional.",
+    description: "Ceritakan secara singkat siapa dirimu saat ini. (Opsional)",
     hint: "Hindari mencantumkan informasi pribadi seperti nama asli, alamat, atau nomor kontak.",
     placeholder: "Ceritakan sedikit tentang dirimu...",
     required: false,
@@ -161,9 +160,9 @@ const REGISTRATION_STEPS: RegistrationStep[] = [
     type: "textarea",
     field: "intention",
     title:
-      "Setelah memahami kisah yang akan kamu temukan, kontribusi apa yang ingin kamu bawa kembali ke masa kini?",
+      "Setelah memahami kisah yang akan kamu temukan, kontribusi apa yang ingin kamu bawa kembali ke masa kini? (Opsional)",
     placeholder: "Aku berharap suatu hari bisa...",
-    required: true,
+    required: false,
     rows: 4,
     ctaLabel: "Lanjutkan",
   },
